@@ -135,7 +135,7 @@ def main():
             window.engine.enemies.clear()
             for _ in range(20):
                 window.engine.spawn_enemy("drone")
-            window.engine.enemy_bullets = [Entity(100000+i, "round" if i%2 else "wedge",
+            window.engine.enemy_bullets = [Entity(100000+i, "guess" if i%2 else "dict",
                 130+(i%25)*50, 350+(i//25)*45, 8, vy=-150, ttl=12) for i in range(250)]
             window.sync_sprites()
             timings = []

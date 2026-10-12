@@ -179,8 +179,7 @@ class GuardianWindow(arcade.Window):
     def sync_sprites(self):
         e = self.engine
         groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
-        widths = {"player": 88, "bot": 78, "drone": 108, "swarm": 58, "boss": 240,
-                  "player_bullet": 7, "round": 23, "wedge": 26}
+        widths = {"player": 88, "bot": 78, "drone": 108, "swarm": 58, "boss": 240}  # bullets: drawn at size
         for group, entities in groups.items():
             mapping = self.sprite_maps[group]
             live = {entity.id for entity in entities}
@@ -191,12 +190,12 @@ class GuardianWindow(arcade.Window):
                 sprite = mapping.get(entity.id)
                 if sprite is None:
                     texture = self.textures[entity.kind]
-                    sprite = arcade.Sprite(texture, scale=widths[entity.kind]/texture.width)
+                    if isinstance(texture, list):  # bullet variants
+                        texture = texture[entity.id % len(texture)]
+                    sprite = arcade.Sprite(texture, scale=widths.get(entity.kind, texture.width)/texture.width)
                     self.sprite_lists[group].append(sprite)
                     mapping[entity.id] = sprite
                 sprite.position = entity.x, entity.y
-                if entity.kind == "wedge":
-                    sprite.angle = math.degrees(math.atan2(entity.vy, entity.vx))-90
                 if group == "player":
                     sprite.alpha = 100 if e.invulnerable and int(e.invulnerable*10)%2 else 255
 

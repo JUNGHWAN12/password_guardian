@@ -16,7 +16,7 @@ CC0 안내: https://creativecommons.org/publicdomain/zero/1.0/
 
 권장 크레딧: `Game assets by Kenney (https://kenney.nl), CC0. Selected and adapted for Password Guardian.`
 
-프로토타입에서 실제 사용하는 이미지는 `assets/images/`에 있으며 [sources.json](images/sources.json)에 원본과 색상 편집 내역을 기록했다. 봇·군단의 장갑을 주황색, 드론을 보라색으로 편집했다. 적 탄환·보호막·HUD는 프로젝트 코드로 렌더링한다. 게임 글꼴은 아래의 IBM Plex Sans KR을 사용한다.
+프로토타입에서 실제 사용하는 이미지는 `assets/images/`에 있으며 [sources.json](images/sources.json)에 원본과 색상 편집 내역을 기록했다. 봇·군단의 장갑을 주황색, 드론을 보라색으로 편집했다. 탄환·보호막·HUD는 프로젝트 코드로 렌더링한다(탄환 글자는 IBM Plex Sans KR). 게임 글꼴은 아래의 IBM Plex Sans KR을 사용한다.
 
 `candidates/review/`의 추천 원본 PNG 13개는 원본을 그대로 복사했다. 배경 시안·기체 비교·화면 시안은 기존 소재를 프로젝트에서 합성한 파생 검토 자료다. 다운로드 주소와 ZIP 해시는 각 팩의 `source.json`, 선정 이미지 해시는 `review/selection.json`에 있다.
 

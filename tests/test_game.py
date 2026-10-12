@@ -144,7 +144,7 @@ class CombatTests(unittest.TestCase):
         engine.session.score = 50
         engine.session.damage = 2
         engine.session.skills = 1
-        engine.enemy_bullets = [Entity(99, "round", *PLAYER_START, 8)]
+        engine.enemy_bullets = [Entity(99, "guess", *PLAYER_START, 8)]
         engine.hurt()
         self.assertEqual((engine.session.score, engine.session.hp, engine.session.damage, engine.session.skills), (0, 3, 2, 1))
         self.assertEqual(engine.session.revive_count, 1)
@@ -154,7 +154,7 @@ class CombatTests(unittest.TestCase):
     def test_skill_radius_cooldown_and_exhaustion(self):
         engine = self.combat()
         x, y = PLAYER_START
-        engine.enemy_bullets = [Entity(1, "round", x+100, y, 8), Entity(2, "round", x+200, y, 8)]
+        engine.enemy_bullets = [Entity(1, "guess", x+100, y, 8), Entity(2, "guess", x+200, y, 8)]
         self.assertTrue(engine.skill())
         self.assertEqual([b.id for b in engine.enemy_bullets], [2])
         self.assertFalse(engine.skill())

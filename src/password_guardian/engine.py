@@ -244,13 +244,13 @@ class Engine:
 
     def fire_enemy(self, e):
         angle = math.atan2(self.player.y-e.y, self.player.x-e.x)
-        kind, speed = "round", 170
+        kind, speed = "guess", 170
         angles = [angle]
         if e.kind == "drone":
             angles = [angle + math.radians(v) for v in (-30, -15, 0, 15, 30)]
-            kind, speed = "wedge", 150
+            kind, speed = "dict", 150
         elif e.kind == "swarm":
-            speed = 160
+            kind, speed = "leak", 160
         elif e.kind == "boss":
             if e.age % 8 < 0.6:
                 return
@@ -259,9 +259,10 @@ class Engine:
                 angles = [angle-0.12, angle, angle+0.12]
             elif pattern == 1:
                 angles = [angle + math.radians(v) for v in range(-45, 46, 15)]
-                kind = "wedge"
+                kind = "dict"
             else:
                 angles = [math.tau*i/12 + e.age*0.2 for i in range(12)]
+                kind = "leak"
             speed = 180
         for a in angles:
             if len(self.enemy_bullets) >= MAX_ENEMY_BULLETS:
