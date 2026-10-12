@@ -1,0 +1,50 @@
+[
+  {
+    "file": "assets/images/player.png",
+    "original": "assets/candidates/space-shooter-remastered/pack/PNG/playerShip2_blue.png",
+    "license": "CC0-1.0",
+    "edit": "unchanged",
+    "sha256": "c8b490d7658bd2ee0f0bd6eb761d0dd3cce7a6381efd9831bb62e75aa1348352"
+  },
+  {
+    "file": "assets/images/guess_bot.png",
+    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_001.png",
+    "license": "CC0-1.0",
+    "edit": "red armor recolored to (255, 154, 48)",
+    "sha256": "8d794c2a8eb05eda1f2aa6e671f999d16c4810469c3d92ba31a2aef2641ceeb3"
+  },
+  {
+    "file": "assets/images/dictionary_drone.png",
+    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_003.png",
+    "license": "CC0-1.0",
+    "edit": "red armor recolored to (188, 91, 245)",
+    "sha256": "4d5cfb7e457e8dd9761f89e8d01f6c6d4428303399262dd64110cf1732cd0a5f"
+  },
+  {
+    "file": "assets/images/leaked_swarm.png",
+    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_004.png",
+    "license": "CC0-1.0",
+    "edit": "red armor recolored to (255, 163, 55)",
+    "sha256": "d7fb8759d9d8a5350dfe0f5b14fe9116bb2a5716321d1d8bca53bb86b4905324"
+  },
+  {
+    "file": "assets/images/intruder.png",
+    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_005.png",
+    "license": "CC0-1.0",
+    "edit": "unchanged",
+    "sha256": "46f0839db91ce20a9e58470a6a0026a149a8b9b72551d87622296fcce00824d8"
+  },
+  {
+    "file": "assets/images/player_bullet.png",
+    "original": "assets/candidates/space-shooter-remastered/pack/PNG/Lasers/laserBlue01.png",
+    "license": "CC0-1.0",
+    "edit": "unchanged",
+    "sha256": "eced881c4ebd76a13e48c388c3d8a82c7c177085b053b40124de517d9c563a3a"
+  },
+  {
+    "file": "assets/images/vault.png",
+    "original": "assets/candidates/review/digital_vault_background_proposal.png",
+    "edit": "prototype composite, see ASSET_MANIFEST.md",
+    "license": "Kenney base tile CC0 + project geometry"
+  }
+]

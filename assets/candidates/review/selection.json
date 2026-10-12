@@ -1,0 +1,184 @@
+[
+  {
+    "id": "player",
+    "role": "보안 수호 기체",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/PNG/playerShip2_blue.png",
+    "review_copy": "assets/candidates/review/player.png",
+    "size": [
+      112,
+      75
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "c8b490d7658bd2ee0f0bd6eb761d0dd3cce7a6381efd9831bb62e75aa1348352"
+  },
+  {
+    "id": "guess_bot",
+    "role": "반복 추측 봇",
+    "pack": "space-shooter-extension",
+    "source": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_001.png",
+    "review_copy": "assets/candidates/review/guess_bot.png",
+    "size": [
+      198,
+      188
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "99f670b630037aad424a9f0aa08099b40b0d49ba09c2b2fb3f90bf87c8a20044"
+  },
+  {
+    "id": "dictionary_drone",
+    "role": "사전 공격 드론",
+    "pack": "space-shooter-extension",
+    "source": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_003.png",
+    "review_copy": "assets/candidates/review/dictionary_drone.png",
+    "size": [
+      271,
+      169
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "f011693ac49719cd9bb9348f82b35397421ef149a4fd5e4ff388fbb547c5403a"
+  },
+  {
+    "id": "leaked_swarm",
+    "role": "유출 계정 군단",
+    "pack": "space-shooter-extension",
+    "source": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_004.png",
+    "review_copy": "assets/candidates/review/leaked_swarm.png",
+    "size": [
+      186,
+      294
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "fbc68486393f66a2b147138dfa06df2673b0abd146a101a91bf66a0e8a52ec8e"
+  },
+  {
+    "id": "intruder",
+    "role": "침입자 보스",
+    "pack": "space-shooter-extension",
+    "source": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_005.png",
+    "review_copy": "assets/candidates/review/intruder.png",
+    "size": [
+      342,
+      301
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "46f0839db91ce20a9e58470a6a0026a149a8b9b72551d87622296fcce00824d8"
+  },
+  {
+    "id": "player_bullet",
+    "role": "아군 탄환",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/PNG/Lasers/laserBlue01.png",
+    "review_copy": "assets/candidates/review/player_bullet.png",
+    "size": [
+      9,
+      54
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "eced881c4ebd76a13e48c388c3d8a82c7c177085b053b40124de517d9c563a3a"
+  },
+  {
+    "id": "enemy_bullet",
+    "role": "적 탄환 형태 검토용",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/PNG/Lasers/laserRed01.png",
+    "review_copy": "assets/candidates/review/enemy_bullet.png",
+    "size": [
+      9,
+      54
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "9a16f8771d766f262c51b694b92ab2748aa744312f70af114ea8ea859166d3fb"
+  },
+  {
+    "id": "shield",
+    "role": "보호막",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/PNG/Effects/shield3.png",
+    "review_copy": "assets/candidates/review/shield.png",
+    "size": [
+      144,
+      137
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "163e95197fc734e1f99c54661691022eecdd9534123cbb2a28b287065ea4d5cc"
+  },
+  {
+    "id": "background_dark",
+    "role": "어두운 배경 타일",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/Backgrounds/black.png",
+    "review_copy": "assets/candidates/review/background_dark.png",
+    "size": [
+      256,
+      256
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "6143af24d9b7441ca36c7197f34a8d428d0a885d9589afbd44ad9211e721464c"
+  },
+  {
+    "id": "background_blue",
+    "role": "파란 배경 타일",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/Backgrounds/blue.png",
+    "review_copy": "assets/candidates/review/background_blue.png",
+    "size": [
+      256,
+      256
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "7319c35e25ab5a3fdfd85e9fb4b72bb56f3975bf316fa5389284d3f3d49cc8ad"
+  },
+  {
+    "id": "background_purple",
+    "role": "보라 배경 타일",
+    "pack": "space-shooter-remastered",
+    "source": "assets/candidates/space-shooter-remastered/pack/Backgrounds/darkPurple.png",
+    "review_copy": "assets/candidates/review/background_purple.png",
+    "size": [
+      256,
+      256
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "8245e3d8c5341981135b1699de877fdc994e52cc180ad63ebc18948f63241e61"
+  },
+  {
+    "id": "rank_panel",
+    "role": "랭킹 패널 소재",
+    "pack": "ui-pack-sci-fi",
+    "source": "assets/candidates/ui-pack-sci-fi/pack/PNG/Extra/Default/panel_glass.png",
+    "review_copy": "assets/candidates/review/rank_panel.png",
+    "size": [
+      64,
+      64
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "a2b6750263c4e7255e50dd085016923cad792306383ce817fe48099cbdb4839d"
+  },
+  {
+    "id": "health_bar",
+    "role": "체력 바 소재",
+    "pack": "ui-pack-sci-fi",
+    "source": "assets/candidates/ui-pack-sci-fi/pack/PNG/Blue/Default/bar_square_large.png",
+    "review_copy": "assets/candidates/review/health_bar.png",
+    "size": [
+      96,
+      24
+    ],
+    "license": "CC0-1.0",
+    "modified": false,
+    "sha256": "3f3258792c22d8ac615ca8edd964a74d2c855751c0f43805a7f573dc4b131130"
+  }
+]
