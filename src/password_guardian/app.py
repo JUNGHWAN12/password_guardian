@@ -190,8 +190,6 @@ class GuardianWindow(arcade.Window):
                 sprite = mapping.get(entity.id)
                 if sprite is None:
                     texture = self.textures[entity.kind]
-                    if isinstance(texture, list):  # bullet variants
-                        texture = texture[entity.id % len(texture)]
                     sprite = arcade.Sprite(texture, scale=widths.get(entity.kind, texture.width)/texture.width)
                     self.sprite_lists[group].append(sprite)
                     mapping[entity.id] = sprite

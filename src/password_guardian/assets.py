@@ -14,10 +14,6 @@ def load_fonts():
 
 
 # Each attack fires what it stands for. Bullets are drawn at 1920x1080 screen size.
-BULLET_STYLE = "icon"  # "icon" (symbols) or "text" (common passwords); final choice pending
-GUESS_WORDS = ("1234", "0000", "1111", "123456", "1q2w3e4r", "qwer1234")
-DICT_WORDS = ("password", "admin", "qwerty", "iloveyou", "letmein", "dragon")
-LEAK_WORDS = ("ID:PW", "user01", "ID/****")
 ORANGE, PURPLE, RED, CYAN = (255, 154, 48), (196, 120, 255), (255, 96, 120), (77, 221, 228)
 INK = (18, 10, 26)
 SS = 4  # supersampling for smooth edges
@@ -42,15 +38,6 @@ def _label(draw, box, text, size, ink=INK):
     left, top, right, bottom = font.getbbox(text)
     x0, y0, x1, y1 = box
     draw.text(((x0 + x1 - (right - left)) / 2 - left, (y0 + y1 - (bottom - top)) / 2 - top), text, font=font, fill=ink)
-
-
-def _chip(text, fill):
-    left, _, right, _ = _font(15).getbbox(text)
-    w = (right - left) // SS + 18
-    im, d = _canvas(w, 26)
-    d.rounded_rectangle((SS, SS, w * SS - SS, 25 * SS), radius=9 * SS, fill=fill, outline=(255, 255, 255, 170), width=2 * SS)
-    _label(d, (0, 0, w * SS, 26 * SS), text, 15)
-    return im
 
 
 def _padlock():
@@ -93,16 +80,10 @@ def _key(fill):
     return im
 
 
-def bullet_textures(style):
-    textures = {"player_bullet": [_texture(_padlock(), "padlock")]}
-    if style == "text":
-        for kind, words, fill in (("guess", GUESS_WORDS, ORANGE), ("dict", DICT_WORDS, PURPLE), ("leak", LEAK_WORDS, RED)):
-            textures[kind] = [_texture(_chip(word, fill), f"{kind}-{word}") for word in words]
-    else:
-        textures["guess"] = [_texture(_bubble("?", ORANGE), "guess-icon")]
-        textures["dict"] = [_texture(_book(PURPLE), "dict-icon")]
-        textures["leak"] = [_texture(_key(RED), "leak-icon")]
-    return textures
+def bullet_textures():
+    # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks.
+    return {"player_bullet": _texture(_padlock(), "padlock"), "guess": _texture(_bubble("?", ORANGE), "guess"),
+            "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak")}
 
 
 def load_textures():
@@ -114,5 +95,5 @@ def load_textures():
         if not path.exists():
             raise FileNotFoundError(f"에셋이 없습니다: {path}. python tools/prepare_prototype_assets.py를 실행하세요.")
         textures[key] = arcade.load_texture(path)
-    textures.update(bullet_textures(BULLET_STYLE))
+    textures.update(bullet_textures())
     return textures
