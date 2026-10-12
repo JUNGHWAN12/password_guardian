@@ -1,0 +1,18 @@
+{
+  "family": "Galmuri11",
+  "author": "Lee Minseo (quiple)",
+  "license": "OFL-1.1",
+  "license_file": "assets/fonts/LICENSE.txt",
+  "project": "https://github.com/quiple/galmuri",
+  "package": "galmuri@2.40.3",
+  "tarball": "https://registry.npmjs.org/galmuri/-/galmuri-2.40.3.tgz",
+  "tarball_sha256": "7d6b2b8534d157dd5e4eb8e01145f7388c0383bed8a96f5ec719eaacf1f86816",
+  "retrieved": "2026-10-12",
+  "files": [
+    {"file": "assets/fonts/Galmuri11.ttf", "original": "package/dist/Galmuri11.ttf", "edit": "unchanged",
+     "sha256": "2c709890595668f7bdb6df408420fda957dde0288e95b31a1cc17a2ab98b4b4f"},
+    {"file": "assets/fonts/Galmuri11-Bold.ttf", "original": "package/dist/Galmuri11-Bold.ttf", "edit": "unchanged",
+     "sha256": "5265b2f437fe81f0c8095b44c0173dd9a276b58a42552bf983f21c0e69e6e8af"},
+    {"file": "assets/fonts/LICENSE.txt", "original": "package/dist/LICENSE.txt", "edit": "unchanged"}
+  ]
+}

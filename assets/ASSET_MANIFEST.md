@@ -46,3 +46,12 @@
 | [background_candidates.jpg](candidates/review/background_candidates.jpg) | 원본 타일 3종과 합성 시안 비교 | 후보 비교용 |
 
 위 파생물은 원본 이미지와 분리되어 있다. 최종 에셋 편집 시 원본 경로·편집 내용·사용 위치를 이 목록에 추가한다.
+
+## 글꼴
+
+| 에셋 ID | 파일 | 용도·상태 |
+|---|---|---|
+| `font_regular` | [Galmuri11.ttf](fonts/Galmuri11.ttf) | 본문·숫자, 게임 적용 |
+| `font_bold` | [Galmuri11-Bold.ttf](fonts/Galmuri11-Bold.ttf) | 제목·강조, 게임 적용 |
+
+출처·해시는 [fonts/source.json](fonts/source.json), 이용 조건은 [LICENSE.txt](fonts/LICENSE.txt)와 [LICENSES.md](LICENSES.md)를 따른다.

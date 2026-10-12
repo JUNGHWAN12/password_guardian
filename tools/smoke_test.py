@@ -9,7 +9,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 import arcade
-from password_guardian.app import GuardianWindow
+import pyglet
+from password_guardian.app import FONT, GuardianWindow
 from password_guardian.config import MANUAL_PAUSE_SECONDS
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
@@ -26,6 +27,9 @@ def main():
         try:
             window.switch_to()
             report["gpu"] = window.ctx.info.RENDERER
+            # The bundled Korean font must win over system fallbacks.
+            report["font"] = pyglet.font.load(FONT).name
+            assert report["font"] == "Galmuri11"
 
             def capture(name):
                 window.sync_sprites()
@@ -149,7 +153,7 @@ def main():
             capture("letterbox_4_3")
             report["checks"] = ["10 complete 240-second simulated sessions", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
-                                "pause and focus recovery", "manual pause auto-resume", "stage cleanup", "4:3 letterbox", "OpenGL render"]
+                                "pause and focus recovery", "manual pause auto-resume", "bundled Galmuri font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:
             window.worker.executor.shutdown(wait=True)
             window.shutdown()

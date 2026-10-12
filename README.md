@@ -38,9 +38,9 @@ python -m venv .venv
 .\.venv\Scripts\python.exe run_game.py
 ```
 
-첫 의존성 설치에는 인터넷이 필요합니다. 설치 후 플레이와 랭킹은 인터넷 없이 동작합니다. `run.ps1`과 `start_game.bat`는 `.venv`가 있으면 그 Python을 우선 사용합니다. 이미지 경로는 실행 파일 위치를 기준으로 하므로 다른 폴더에서 실행해도 됩니다.
+첫 의존성 설치에는 인터넷이 필요합니다. 설치 후 플레이와 랭킹은 인터넷 없이 동작합니다. `run.ps1`과 `start_game.bat`는 `.venv`가 있으면 그 Python을 우선 사용합니다. 이미지·글꼴 경로는 실행 파일 위치를 기준으로 하므로 다른 폴더에서 실행해도 됩니다.
 
-`src/`, `data/`, `assets/images/`, 실행 파일과 라이선스 문서를 함께 옮겨야 합니다. 프로토타입은 Windows 기본 글꼴인 맑은 고딕을 사용하며, 글꼴 파일을 재배포하지 않습니다. EXE 패키징과 별도 배포용 한글 글꼴은 후속 작업입니다.
+`src/`, `data/`, `assets/images/`, `assets/fonts/`, 실행 파일과 라이선스 문서를 함께 옮겨야 합니다. 한글은 함께 포함한 Galmuri11 글꼴(SIL OFL 1.1)로 표시하므로 PC에 글꼴을 따로 설치하지 않아도 됩니다. EXE 패키징은 후속 작업입니다.
 
 ## 구현된 플레이
 
@@ -101,6 +101,7 @@ python tools/smoke_test.py
 | `src/password_guardian/rankings.py` | SQLite·백그라운드 저장·백업·초기화 |
 | `data/choices.json`, `data/waves.json` | 보안 문항과 적 생성 시간표 |
 | `assets/images/sources.json` | 실제 사용한 임시 에셋의 원본·편집 내역 |
+| `assets/fonts/` | 한글 글꼴 Galmuri11 일반·굵게, 라이선스와 출처(`source.json`) |
 
 원본 후보에서 임시 게임 이미지를 다시 만들 때는 `python tools/prepare_prototype_assets.py`를 실행합니다. 이 작업에는 후보 폴더와 Pillow가 필요합니다. 후보 갤러리 생성 스크립트와 별개이며 게임 실행 시에는 필요하지 않습니다.
 

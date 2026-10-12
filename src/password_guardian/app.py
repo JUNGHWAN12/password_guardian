@@ -5,7 +5,7 @@ from pathlib import Path
 import arcade
 from arcade.types import LBWH, LRBT
 
-from .assets import load_textures
+from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
 from .engine import Engine
 from .rankings import Board, RankingWorker, participant_code
@@ -19,7 +19,7 @@ CYAN = (77, 221, 228)
 GOLD = (255, 195, 104)
 RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
-FONT = ("Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")
+FONT = ("Galmuri11", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled Galmuri first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 
 
@@ -31,6 +31,7 @@ class GuardianWindow(arcade.Window):
         self.set_minimum_size(960, 540)
         self.automated = automated
         self.engine = Engine(practice=practice)
+        load_fonts()
         self.textures = load_textures()
         self.camera = arcade.Camera2D(window=self, position=(WIDTH/2, HEIGHT/2),
                                      projection=LRBT(-WIDTH/2, WIDTH/2, -HEIGHT/2, HEIGHT/2))

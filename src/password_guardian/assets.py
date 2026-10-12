@@ -2,6 +2,16 @@ from PIL import Image, ImageDraw
 import arcade
 from .config import ROOT
 
+FONT_FILES = ("Galmuri11.ttf", "Galmuri11-Bold.ttf")
+
+
+def load_fonts():
+    for name in FONT_FILES:
+        path = ROOT / "assets/fonts" / name
+        if not path.exists():
+            raise FileNotFoundError(f"글꼴이 없습니다: {path}")
+        arcade.load_font(path)
+
 
 def load_textures():
     names = {"player": "player", "bot": "guess_bot", "drone": "dictionary_drone",
