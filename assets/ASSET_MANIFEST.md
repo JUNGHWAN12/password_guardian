@@ -51,7 +51,7 @@
 
 | 에셋 ID | 파일 | 용도·상태 |
 |---|---|---|
-| `font_regular` | [Galmuri11.ttf](fonts/Galmuri11.ttf) | 본문·숫자, 게임 적용 |
-| `font_bold` | [Galmuri11-Bold.ttf](fonts/Galmuri11-Bold.ttf) | 제목·강조, 게임 적용 |
+| `font_regular` | [IBMPlexSansKR-Regular.ttf](fonts/IBMPlexSansKR-Regular.ttf) | 본문·숫자, 게임 적용 |
+| `font_bold` | [IBMPlexSansKR-Bold.ttf](fonts/IBMPlexSansKR-Bold.ttf) | 제목·강조, 게임 적용 |
 
 출처·해시는 [fonts/source.json](fonts/source.json), 이용 조건은 [LICENSE.txt](fonts/LICENSE.txt)와 [LICENSES.md](LICENSES.md)를 따른다.

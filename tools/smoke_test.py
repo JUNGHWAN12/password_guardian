@@ -29,7 +29,7 @@ def main():
             report["gpu"] = window.ctx.info.RENDERER
             # The bundled Korean font must win over system fallbacks.
             report["font"] = pyglet.font.load(FONT).name
-            assert report["font"] == "Galmuri11"
+            assert report["font"] == "IBM Plex Sans KR"
 
             def capture(name):
                 window.sync_sprites()
@@ -153,7 +153,7 @@ def main():
             capture("letterbox_4_3")
             report["checks"] = ["10 complete 240-second simulated sessions", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
-                                "pause and focus recovery", "manual pause auto-resume", "bundled Galmuri font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
+                                "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:
             window.worker.executor.shutdown(wait=True)
             window.shutdown()

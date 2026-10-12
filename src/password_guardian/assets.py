@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw
 import arcade
 from .config import ROOT
 
-FONT_FILES = ("Galmuri11.ttf", "Galmuri11-Bold.ttf")
+FONT_FILES = ("IBMPlexSansKR-Regular.ttf", "IBMPlexSansKR-Bold.ttf")
 
 
 def load_fonts():

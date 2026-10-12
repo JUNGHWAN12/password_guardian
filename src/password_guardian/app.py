@@ -19,7 +19,7 @@ CYAN = (77, 221, 228)
 GOLD = (255, 195, 104)
 RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
-FONT = ("Galmuri11", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled Galmuri first
+FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 
 
@@ -200,11 +200,14 @@ class GuardianWindow(arcade.Window):
                 if group == "player":
                     sprite.alpha = 100 if e.invulnerable and int(e.invulnerable*10)%2 else 255
 
-    def txt(self, key, text, x, y, size=24, color=WHITE, *, width=None, bold=False, anchor="left"):
+    def txt(self, key, text, x, y, size=24, color=WHITE, *, width=None, bold=False, anchor="left", leading=1.3):
         label = self.labels.get(key)
         if label is None:
             label = arcade.Text(str(text), x, y, color, size, font_name=FONT, bold=bold,
                                 anchor_x=anchor, anchor_y="top", width=width, multiline=width is not None)
+            if width is not None:
+                # Fixed baseline distance (multiple of font size) keeps wrapped text independent of font metrics.
+                label.label.set_style("line_spacing", f"{size*leading:.1f}pt")
             self.labels[key] = label
         else:
             if label.text != str(text):
@@ -272,7 +275,7 @@ class GuardianWindow(arcade.Window):
 
     def draw_title(self):
         self.txt("eyebrow", "DIGITAL SECURITY / INTERACTIVE MISSION", 100, 983, 18, CYAN)
-        self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True)
+        self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True, leading=1.1)
         self.txt("subtitle", "계정을 노리는 공격으로부터\n디지털 금고를 지켜라!", 102, 654, 30, MUTED, width=800)
         self.image("player", 895, 649 + math.sin(self.clock*1.5)*8, 270)
         arcade.draw_circle_outline(895, 652, 188, (40, 115, 134), 2)
@@ -365,14 +368,14 @@ class GuardianWindow(arcade.Window):
         arcade.draw_line(x, 420, 1820, 420, EDGE, 2)
         self.txt("tip-label", "오늘의 보안 습관", x, 392, 21, CYAN, bold=True)
         self.txt("tip-body", e.questions[e.stage]["short"], x, 345, 25, WHITE, width=270)
-        self.txt("tip-foot", "체력이 없어져도 다시 부활해요. 끝까지 도전해 보세요!", x, 247, 18, MUTED, width=266)
+        self.txt("tip-foot", "체력이 없어져도 다시 부활해요. 끝까지 도전해 보세요!", x, 229, 18, MUTED, width=266)
 
     def draw_tutorial(self):
-        self.panel(295, 566, 970, 285, fill=(10, 27, 41, 245), edge=(55, 126, 140))
+        self.panel(295, 546, 970, 305, fill=(10, 27, 41, 245), edge=(55, 126, 140))
         self.txt("tutorial-tag", f"조작 연습  ·  {math.ceil(self.engine.remaining)}초 후 시작", 335, 814, 23, CYAN)
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
         self.txt("tutorial-body", "방향키로 이동하면 탄환은 자동으로 발사됩니다.\nSpace로 주변 탄환을 지워 보세요. 연습 기록은 저장되지 않아요.", 335, 691, 22, MUTED, width=890)
-        self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 610, 18, MUTED)
+        self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
 
     def draw_choice(self):
         e = self.engine
