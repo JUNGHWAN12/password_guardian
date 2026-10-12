@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from password_guardian.config import FIELD, PLAYER_START
-from password_guardian.engine import Engine, Entity
+from password_guardian.engine import Engine, Entity, overlaps
 from password_guardian.session import Session, grade_for
 
 
@@ -83,6 +83,20 @@ class TimelineTests(unittest.TestCase):
         engine.hurt()
         self.assertEqual(engine.session.score, result.score)
         self.assertIs(engine.result, result)
+
+    def test_boss_never_spawns_on_player(self):
+        engine = Engine(seed=3)
+        engine.start()
+        engine.update(139.99)
+        engine.player.x, engine.player.y = 780, FIELD[3]-40  # top centre, inside the boss path
+        engine.update(0.02)
+        self.assertEqual((engine.state, engine.stage), ("CHOICE", 2))
+        self.assertEqual((engine.player.x, engine.player.y), PLAYER_START)
+        engine.session.hp, engine.session.shield, engine.invulnerable = 3, 0, 0
+        engine.update(8)
+        boss = next(e for e in engine.enemies if e.kind == "boss")
+        self.assertFalse(overlaps(engine.player, boss))
+        self.assertEqual(engine.session.hp, 3)
 
     def test_invalid_delta_rejected(self):
         for delta in (-1, math.inf, math.nan):

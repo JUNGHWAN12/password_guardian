@@ -6,7 +6,7 @@ import arcade
 from arcade.types import LBWH, LRBT
 
 from .assets import load_textures
-from .config import WIDTH, HEIGHT, FIELD
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
 from .engine import Engine
 from .rankings import Board, RankingWorker, participant_code
 
@@ -39,6 +39,7 @@ class GuardianWindow(arcade.Window):
         self.keys = set()
         self.control_keys = set()
         self.manual_paused = False
+        self.manual_pause_left = 0.0
         self.focus_paused = False
         self.resume_in = 0.0
         self.last_revision = self.engine.revision
@@ -78,7 +79,7 @@ class GuardianWindow(arcade.Window):
     def on_activate(self):
         if getattr(self, "focus_paused", False):
             self.focus_paused = False
-            self.resume_in = 3.0
+            self.resume_in = 0.0 if self.manual_paused else 3.0
 
     def on_key_press(self, key, modifiers):
         if key in (arcade.key.F11, arcade.key.ESCAPE):
@@ -92,6 +93,7 @@ class GuardianWindow(arcade.Window):
         if key == arcade.key.ESCAPE and self.engine.state != "TITLE":
             if not self.focus_paused:
                 self.manual_paused = not self.manual_paused
+                self.manual_pause_left = MANUAL_PAUSE_SECONDS
                 self.resume_in = 0 if self.manual_paused else 3
                 self.keys.clear()
             return
@@ -147,7 +149,15 @@ class GuardianWindow(arcade.Window):
     def on_update(self, delta_time):
         self.clock += delta_time
         self.poll_rankings()
-        if self.focus_paused or self.manual_paused:
+        if self.focus_paused:
+            return
+        if self.manual_paused:
+            # A visitor may pause and walk away; the session must still finish on its own.
+            self.manual_pause_left = max(0, self.manual_pause_left-delta_time)
+            if self.manual_pause_left > 0:
+                return
+            self.manual_paused = False
+            self.resume_in = 3.0
             return
         if self.resume_in > 0:
             self.resume_in = max(0, self.resume_in-delta_time)
@@ -253,7 +263,8 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (4, 10, 19, 220))
             label = f"{math.ceil(self.resume_in)}초 후 다시 시작" if self.resume_in > 0 else "잠시 쉬어가요"
             self.txt("pause-title", label, 960, 620, 48, anchor="center", bold=True)
-            detail = "게임 창으로 돌아오면 계속됩니다" if self.focus_paused else "Esc 키로 이어서 플레이"
+            detail = ("게임 창으로 돌아오면 계속됩니다" if self.focus_paused
+                      else f"Esc 키로 이어서 플레이  ·  {math.ceil(self.manual_pause_left)}초 후 자동 재개")
             if self.resume_in > 0:
                 detail = "이동 키를 준비하세요"
             self.txt("pause-detail", detail, 960, 530, 25, MUTED, anchor="center")

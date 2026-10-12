@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 import arcade
 from password_guardian.app import GuardianWindow
+from password_guardian.config import MANUAL_PAUSE_SECONDS
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
 
@@ -60,6 +61,15 @@ def main():
                     window.on_key_release(arcade.key.ESCAPE, 0)
                     window.on_update(3)
                     assert window.engine.elapsed == before
+                    # An abandoned Esc pause resumes by itself after the 3-second notice.
+                    window.on_key_press(arcade.key.ESCAPE, 0)
+                    window.on_key_release(arcade.key.ESCAPE, 0)
+                    window.on_update(MANUAL_PAUSE_SECONDS-1)
+                    assert window.manual_paused and window.engine.elapsed == before
+                    window.on_update(1)
+                    assert not window.manual_paused and window.resume_in == 3
+                    window.on_update(3)
+                    assert window.engine.elapsed == before and not window.paused
                     window.automated = False
                     window.on_key_press(arcade.key.RIGHT, 0)
                     window.on_deactivate()
@@ -100,6 +110,13 @@ def main():
                 report["cycles"].append({"score": window.engine.result.score,
                                           "revives": window.engine.result.revive_count,
                                           "rank": window.board.own["rank"]})
+                if cycle == 0:
+                    # Paused on the result screen and left alone: still returns to the title.
+                    window.on_key_press(arcade.key.ESCAPE, 0)
+                    window.on_key_release(arcade.key.ESCAPE, 0)
+                    window.on_update(MANUAL_PAUSE_SECONDS)
+                    window.on_update(3)
+                assert window.engine.state == "RESULT"
                 window.on_update(40)
                 assert window.engine.state == "TITLE"
                 assert all(len(window.sprite_lists[n]) == 0 for n in ("enemies", "shots", "threats"))
@@ -132,7 +149,7 @@ def main():
             capture("letterbox_4_3")
             report["checks"] = ["10 complete 240-second simulated sessions", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
-                                "pause and focus recovery", "stage cleanup", "4:3 letterbox", "OpenGL render"]
+                                "pause and focus recovery", "manual pause auto-resume", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:
             window.worker.executor.shutdown(wait=True)
             window.shutdown()

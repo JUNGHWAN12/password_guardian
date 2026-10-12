@@ -85,6 +85,8 @@ class Engine:
             self.enemies.clear()
             self.player_bullets.clear()
             self.enemy_bullets.clear()
+            # The boss path overrides spawn relocation, so every stage starts from a safe spot.
+            self.player.x, self.player.y = PLAYER_START
         elif state == "COMBAT":
             self.events = []
             self.event_index = 0
