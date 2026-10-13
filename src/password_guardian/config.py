@@ -2,7 +2,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WIDTH, HEIGHT = 1920, 1080
-RULESET = "prototype-1"
+RULESET = "prototype-2"  # bump whenever enemies, scoring or hitboxes change
 FIELD = (90, 1470, 135, 910)  # left, right, bottom, top
 PLAYER_START = (780, 220)
 STEP = 1 / 120

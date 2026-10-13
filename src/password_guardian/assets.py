@@ -15,6 +15,7 @@ def load_fonts():
 
 # Each attack fires what it stands for. Bullets are drawn at 1920x1080 screen size.
 ORANGE, PURPLE, RED, CYAN = (255, 154, 48), (196, 120, 255), (255, 96, 120), (77, 221, 228)
+PINK, LIME, KEYTOP = (255, 92, 170), (170, 240, 60), (226, 230, 238)
 INK = (18, 10, 26)
 SS = 4  # supersampling for smooth edges
 
@@ -80,15 +81,51 @@ def _key(fill):
     return im
 
 
+def _hook(fill):
+    im, d = _canvas(26, 26)
+    s = SS
+    d.ellipse((s, s, 25 * s, 25 * s), fill=fill, outline=(255, 255, 255, 170), width=2 * s)
+    d.ellipse((13 * s, 4 * s, 17 * s, 8 * s), outline=INK, width=s)  # eye
+    d.line((15 * s, 8 * s, 15 * s, 15 * s), fill=INK, width=2 * s)  # shank
+    d.arc((8 * s, 10 * s, 16 * s, 20 * s), 0, 180, fill=INK, width=2 * s)  # bend
+    d.polygon([(7 * s, 15 * s), (9 * s, 10 * s), (10 * s, 15 * s)], fill=INK)  # barb
+    return im
+
+
+def _bell(fill):
+    im, d = _canvas(26, 26)
+    s = SS
+    d.ellipse((s, s, 25 * s, 25 * s), fill=fill, outline=(255, 255, 255, 170), width=2 * s)
+    d.pieslice((8 * s, 6 * s, 18 * s, 16 * s), 180, 360, fill=INK)  # dome
+    d.rectangle((8 * s, 11 * s, 18 * s, 16 * s), fill=INK)
+    d.polygon([(6 * s, 18 * s), (20 * s, 18 * s), (18 * s, 15 * s), (8 * s, 15 * s)], fill=INK)  # rim
+    d.ellipse((11 * s, 18 * s, 15 * s, 22 * s), fill=INK)  # clapper
+    return im
+
+
+def _keycap():
+    im, d = _canvas(26, 26)
+    s = SS
+    d.rounded_rectangle((s, s, 25 * s, 25 * s), radius=5 * s, fill=(110, 116, 128), outline=RED, width=2 * s)
+    d.rounded_rectangle((5 * s, 4 * s, 21 * s, 19 * s), radius=3 * s, fill=KEYTOP)
+    _label(d, (5 * s, 6 * s, 21 * s, 21 * s), "*", 20)  # a typed password character
+    d.ellipse((19 * s, 19 * s, 23 * s, 23 * s), fill=RED)  # recording light
+    return im
+
+
 def bullet_textures():
-    # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks.
+    # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
+    # bell (approval prompts) and keycap (keylogger) for the newer attacks.
     return {"player_bullet": _texture(_padlock(), "padlock"), "guess": _texture(_bubble("?", ORANGE), "guess"),
-            "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak")}
+            "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
+            "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap")}
 
 
 def load_textures():
     names = {"player": "player.png", "bot": "guess_bot.png", "drone": "dictionary_drone.png",
-             "swarm": "leaked_swarm.png", "boss": "intruder.png"}
+             "swarm": "leaked_swarm.png", "boss": "intruder.png", "phish": "phishing_lure.png",
+             "phish_disguise": "phishing_lure_disguise.png", "keylogger": "keylogger.png", "mfa": "mfa_bomber.png",
+             "sprayer": "password_sprayer.png"}
     names.update({bg: f"{bg}.jpg" for bg in ("bg_title", "bg_stage_1", "bg_stage_2", "bg_stage_3", "bg_result")})
     textures = {}
     for key, name in names.items():

@@ -1,3 +1,4 @@
+from collections import Counter
 import math
 from pathlib import Path
 import sys
@@ -5,7 +6,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from password_guardian.config import FIELD, PLAYER_START
-from password_guardian.engine import Engine, Entity, overlaps
+from password_guardian.engine import Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, overlaps
 from password_guardian.session import Session, grade_for
 
 
@@ -200,6 +201,82 @@ class CombatTests(unittest.TestCase):
         engine.update(1, (1, 1))
         self.assertEqual((enemy.x, enemy.y, enemy.fire_in), before)
         self.assertEqual((engine.player.x, engine.player.y), PLAYER_START)
+
+
+class AttackTests(unittest.TestCase):
+    def combat(self):
+        engine = Engine(seed=8)
+        engine.state = "COMBAT"
+        engine.events = []
+        engine.shot_in = 1e9  # keep the guardian from shooting the attacker under test
+        return engine
+
+    def test_phishing_lure_waits_until_unmasked(self):
+        engine = self.combat()
+        engine.spawn_enemy("phish")
+        engine.update(PHISH_REVEAL + 0.25)
+        self.assertEqual(engine.enemy_bullets, [])
+        engine.update(0.1)
+        self.assertEqual([b.kind for b in engine.enemy_bullets], ["hook"])
+
+    def test_alert_bomber_holds_bursts_eight_and_leaves(self):
+        engine = self.combat()
+        engine.spawn_enemy("mfa")
+        bomber = engine.enemies[0]
+        engine.update(3.7)  # 210 px glide at 60 px/s, then 0.3 s of warning
+        self.assertEqual((bomber.y, len(engine.enemy_bullets)), (760, 0))
+        engine.update(1.4)
+        self.assertEqual([b.kind for b in engine.enemy_bullets], ["bell"] * 8)
+        engine.update(15)
+        self.assertNotIn(bomber, engine.enemies)  # withdrew upward after its stay
+
+    def test_sprayer_sweeps_thirteen_shots_then_rests(self):
+        engine = self.combat()
+        engine.spawn_enemy("sprayer")
+        sprayer = engine.enemies[0]
+        engine.update(1.9)
+        self.assertEqual((sprayer.y, len(engine.enemy_bullets)), (870, 0))
+        engine.update(1.6)
+        angles = [math.atan2(b.vy, b.vx) for b in engine.enemy_bullets]
+        self.assertEqual(len(angles), 13)
+        self.assertAlmostEqual(abs(angles[-1]-angles[0]), math.radians(120), places=5)
+        self.assertTrue(all(b.vy < 0 and b.kind == "guess" for b in engine.enemy_bullets))
+        engine.update(2.0)
+        self.assertEqual(sprayer.burst, 0)
+        self.assertGreater(sprayer.fire_in, 0)
+
+    def test_keylogger_shoots_where_the_player_was(self):
+        engine = self.combat()
+        engine.spawn_enemy("keylogger")
+        logger = engine.enemies[0]
+        logger.x, logger.y, logger.vy = 780, 800, 0
+        engine.update(0.5, (1, 0))   # run right to x=930
+        engine.update(1.4)           # wait there
+        engine.update(0.55, (-1, 0))  # run back left; the 2.4 s shot uses the 1.2 s position
+        self.assertLess(engine.player.x, 800)
+        shot = engine.enemy_bullets[-1]
+        expected = math.atan2(PLAYER_START[1]-800, 930-780)
+        self.assertAlmostEqual(math.atan2(shot.vy, shot.vx), expected, places=2)
+        self.assertEqual((len(engine.enemy_bullets), shot.kind), (2, "keycap"))
+        self.assertEqual(KEYLOGGER_DELAY, 1.2)
+
+    def test_new_attacks_join_each_stage_once(self):
+        engine = Engine()
+        for stage, expected in ((0, {"sprayer": 1, "keylogger": 1}), (1, {"phish": 2}), (2, {"mfa": 1})):
+            engine.stage = stage
+            engine.enter("COMBAT")
+            counts = Counter(kind for _, kind, _ in engine.events)
+            self.assertEqual({k: counts[k] for k in expected}, expected)
+            self.assertTrue(all(kind in engine.intros or kind in ("bot", "drone", "swarm") for kind in counts))
+
+    def test_alert_bombers_reinforce_after_the_boss(self):
+        engine = self.combat()
+        engine.stage = 2
+        engine.session.boss_defeated = True
+        engine.reinforcement_in = 0.05
+        engine.update(0.1)
+        self.assertEqual([e.kind for e in engine.enemies], ["mfa"])
+        self.assertAlmostEqual(engine.reinforcement_in, 8 - 0.05, places=1)
 
 
 class ScoreTests(unittest.TestCase):

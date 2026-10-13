@@ -53,6 +53,46 @@
     "sha256": "dfc61bd1b4962066daf8f24acfa48be3ddb710772bf79b8654b36f982cbda1bc"
   },
   {
+    "file": "assets/images/keylogger.png",
+    "original": "assets/generated/keylogger.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 144x170",
+    "sha256": "17269e38bb1c56cd8f7728d00cecbb3cf00dfae26ca413ca0599dc2830278b91"
+  },
+  {
+    "file": "assets/images/phishing_lure_disguise.png",
+    "original": "assets/generated/phishing_lure_disguise.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 140x187",
+    "sha256": "ecd173bcaf1cb38b03453291c910009c97eb2ad1f3572b56a59c5ec403fe73dd"
+  },
+  {
+    "file": "assets/images/phishing_lure.png",
+    "original": "assets/generated/phishing_lure.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 140x187",
+    "sha256": "15bcb1b389b6ce51bd8ae251829b8b9b01fe4aac9210cc3a203cbb2fa4526eb0"
+  },
+  {
+    "file": "assets/images/mfa_bomber.png",
+    "original": "assets/generated/mfa_bomber.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 168x169",
+    "sha256": "6574319538af28d586b6ff54ef7eecc4debb404f93f78fb0f53127c0a81a7cd6"
+  },
+  {
+    "file": "assets/images/password_sprayer.png",
+    "original": "assets/generated/password_sprayer.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 156x216",
+    "sha256": "7c3243339bc8e413520dd9b74680afad833d910a4854b54f61fe93b217a91815"
+  },
+  {
     "file": "assets/images/bg_title.jpg",
     "original": "assets/generated/bg_title.jpg",
     "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",

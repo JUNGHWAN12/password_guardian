@@ -7,7 +7,7 @@ from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
-from .engine import Engine
+from .engine import Engine, PHISH_REVEAL
 from .rankings import Board, RankingWorker, participant_code
 
 INK = (7, 14, 24)
@@ -19,6 +19,7 @@ CYAN = (77, 221, 228)
 GOLD = (255, 195, 104)
 RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
+PINK = (255, 92, 170)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
@@ -47,6 +48,8 @@ class GuardianWindow(arcade.Window):
         self.last_revision = self.engine.revision
         self.seen_result = None
         self.clock = 0.0
+        self.seen_attacks = set()  # attack kinds already introduced this game
+        self.banner, self.banner_left = None, 0.0
         self.board = Board((), 0, None)
         self.rank_status = "기록을 불러오는 중"
         self.worker = RankingWorker(Path(data_dir) / "rankings.sqlite3")
@@ -123,6 +126,9 @@ class GuardianWindow(arcade.Window):
         self.keys.clear()
         self.labels.clear()
         self.last_revision = self.engine.revision
+        self.banner_left = 0.0
+        if self.engine.state == "TUTORIAL":
+            self.seen_attacks.clear()
         if self.engine.state == "TITLE":
             self.request_board()
 
@@ -167,6 +173,12 @@ class GuardianWindow(arcade.Window):
         movement = (int(arcade.key.RIGHT in self.keys)-int(arcade.key.LEFT in self.keys),
                     int(arcade.key.UP in self.keys)-int(arcade.key.DOWN in self.keys))
         self.engine.update(delta_time, movement)
+        self.banner_left = max(0, self.banner_left-delta_time)
+        if self.engine.state == "COMBAT":
+            for enemy in self.engine.enemies:
+                if enemy.kind in self.engine.intros and enemy.kind not in self.seen_attacks:
+                    self.seen_attacks.add(enemy.kind)
+                    self.banner, self.banner_left = enemy.kind, 3.0
         if self.engine.result and self.seen_result != self.engine.result.session_id:
             self.seen_result = self.engine.result.session_id
             self.board = Board(self.board.rows, self.board.total, None)
@@ -180,7 +192,8 @@ class GuardianWindow(arcade.Window):
     def sync_sprites(self):
         e = self.engine
         groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
-        widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200}  # bullets: drawn at size
+        widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200, "phish": 70,
+                  "keylogger": 72, "mfa": 84, "sprayer": 78}  # bullets: drawn at size
         for group, entities in groups.items():
             mapping = self.sprite_maps[group]
             live = {entity.id for entity in entities}
@@ -189,11 +202,16 @@ class GuardianWindow(arcade.Window):
                     mapping.pop(entity_id).remove_from_sprite_lists()
             for entity in entities:
                 sprite = mapping.get(entity.id)
+                disguised = entity.kind == "phish" and entity.age < PHISH_REVEAL
+                texture = self.textures["phish_disguise" if disguised else entity.kind]
                 if sprite is None:
-                    texture = self.textures[entity.kind]
                     sprite = arcade.Sprite(texture, scale=widths.get(entity.kind, texture.width)/texture.width)
+                    if entity.kind == "keylogger":
+                        sprite.alpha = 205  # a shadow that is still easy to spot
                     self.sprite_lists[group].append(sprite)
                     mapping[entity.id] = sprite
+                elif sprite.texture is not texture:  # a phishing lure drops its disguise
+                    sprite.texture = texture
                 sprite.position = entity.x, entity.y
                 if group == "player":
                     sprite.alpha = 100 if e.invulnerable and int(e.invulnerable*10)%2 else 255
@@ -329,14 +347,22 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_outline(65, 110, 1430, 815, (*RED, int(e.damage_flash/0.25*220)), 5)
         self.ctx.scissor = previous_scissor
         for enemy in e.enemies:
-            if enemy.age < 0.8:
+            if enemy.age < 0.8 and enemy.kind != "phish":  # a lure arrives looking friendly
                 arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+18, GOLD, 2)
+            if enemy.kind == "phish" and PHISH_REVEAL <= enemy.age < PHISH_REVEAL+0.3:
+                arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+24, PINK, 3)
+                self.txt(f"fake-{enemy.id}", "가짜!", enemy.x, enemy.y+enemy.radius+62, 22, PINK, bold=True, anchor="center")
             if enemy.kind == "boss":
                 self.panel(505, 865, 550, 31, fill=(35, 18, 31, 240), edge=(90, 48, 60))
                 arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/100, 19, RED)
                 self.txt("boss-name", "침입자", 780, 937, 22, RED, anchor="center")
                 if enemy.age % 8 < 0.6:
                     self.txt("boss-warning", "공격 패턴 전환", 780, 845, 26, GOLD, anchor="center")
+        if self.banner_left and e.state == "COMBAT":
+            intro = e.intros[self.banner]
+            self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))
+            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
+            self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
         self.draw_sidebar()
         self.txt("game-footer", "방향키 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")

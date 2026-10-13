@@ -1,7 +1,12 @@
 [
   {"stage":0,"start":0,"end":20,"interval":4,"kinds":["bot"],"count":1},
-  {"stage":0,"start":20,"end":52,"interval":3,"kinds":["bot"],"count":1},
-  {"stage":1,"start":0,"end":26,"interval":3,"kinds":["bot","drone"],"count":1},
+  {"stage":0,"start":20,"end":30,"interval":3,"kinds":["bot"],"count":1},
+  {"stage":0,"start":30,"end":52,"interval":4,"kinds":["bot"],"count":1},
+  {"stage":0,"start":30,"end":31,"interval":60,"kinds":["sprayer"],"count":1},
+  {"stage":0,"start":40,"end":41,"interval":60,"kinds":["keylogger"],"count":1},
+  {"stage":1,"start":0,"end":26,"interval":3.5,"kinds":["bot","drone"],"count":1},
+  {"stage":1,"start":10,"end":35,"interval":24,"kinds":["phish"],"count":1},
   {"stage":1,"start":26,"end":52,"interval":4,"kinds":["drone"],"count":1},
-  {"stage":1,"start":26,"end":52,"interval":8,"kinds":["swarm"],"count":3}
+  {"stage":1,"start":26,"end":52,"interval":8,"kinds":["swarm"],"count":3},
+  {"stage":2,"start":26,"end":27,"interval":60,"kinds":["mfa"],"count":1}
 ]

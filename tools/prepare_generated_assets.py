@@ -17,7 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "assets/generated"
 TARGET = ROOT / "assets/images"
 # Output width is twice the in-game display width (app.py `widths`).
-SHIPS = {"player": 152, "guess_bot": 60, "dictionary_drone": 220, "leaked_swarm": 128, "intruder": 400}
+SHIPS = {"player": ("player.jpg", 152), "guess_bot": ("guess_bot.jpg", 60),
+         "dictionary_drone": ("dictionary_drone.jpg", 220), "leaked_swarm": ("leaked_swarm.jpg", 128),
+         "intruder": ("intruder.jpg", 400), "keylogger": ("keylogger.webp", 144),
+         "phishing_lure_disguise": ("phishing_lure_disguise.webp", 140), "phishing_lure": ("phishing_lure.webp", 140),
+         "mfa_bomber": ("mfa_bomber.webp", 168), "password_sprayer": ("password_sprayer.webp", 156)}
+SAME_FRAME = [("phishing_lure_disguise", "phishing_lure")]  # one crop box, so the reveal swaps in place
+THIN_PARTS = {"phishing_lure_disguise"}  # keep the thin fishing line: no speck or fringe erosion
 FLAME_FROM = {"player": 862}  # rows below the nozzles hold engine flames drawn over the checkerboard
 BADGE = (925, 935, 1023, 1023)  # the generator's "AI" mark, bottom right
 BACKGROUNDS = {"bg_title": "bg_title.jpg", "bg_stage_1": "bg_stage_1.webp", "bg_stage_2": "bg_stage_2.webp",
@@ -57,7 +63,7 @@ def _square_size(gray):
     return gaps[len(gaps) // 2]
 
 
-def background(im):
+def background(im, erode=True):
     """Return an alpha mask: 0 for checkerboard (outside or enclosed) and the AI mark, 255 for the ship."""
     lo, chroma = _channels(im)
     mask = ImageChops.multiply(lo.point(lambda v: 255 if v >= BG_MIN else 0),
@@ -87,17 +93,17 @@ def background(im):
     for seed in pockets:
         ImageDraw.floodfill(mask, seed, 128, thresh=0)
     alpha = mask.point(lambda v: 0 if v == 128 else 255)
-    return alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))  # drop specks
+    return alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)) if erode else alpha  # drop specks
 
 
-def keep_ship(alpha):
-    """Drop detached background streaks: keep parts at least 1.5% of the largest part."""
+def keep_ship(alpha, share=0.015):
+    """Drop detached background streaks: keep parts at least `share` of the largest part."""
     mask = alpha.point(lambda v: 255 if v > 8 else 0)  # semi-transparent flames count as part of the ship
     parts = [(comp.histogram()[255], comp) for _, comp in _components(mask, 255)]
     largest = max(n for n, _ in parts)
     keep = Image.new("L", alpha.size, 0)
     for n, comp in parts:
-        if n >= largest * 0.015:
+        if n >= largest * share:
             keep = ImageChops.lighter(keep, comp)
     return ImageChops.multiply(alpha, keep)
 
@@ -130,17 +136,29 @@ def prepare():
     meta = json.loads((SOURCE / "source.json").read_text(encoding="utf-8"))
     records = [r for r in json.loads((TARGET / "sources.json").read_text(encoding="utf-8"))
                if Path(r["file"]).stem not in SHIPS and Path(r["file"]).stem not in BACKGROUNDS]
-    for name, width in SHIPS.items():
-        src = SOURCE / f"{name}.jpg"
-        im = Image.open(src).convert("RGB")
-        alpha = keep_ship(background(im))
-        alpha = alpha.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.6))  # trim light fringe
+    cut = {}
+    for name, (file, width) in SHIPS.items():
+        im = Image.open(SOURCE / file).convert("RGB")
+        thin = name in THIN_PARTS
+        alpha = keep_ship(background(im, erode=not thin), 0.001 if thin else 0.015)
+        if not thin:
+            alpha = alpha.filter(ImageFilter.MinFilter(3))  # trim light fringe
+        alpha = alpha.filter(ImageFilter.GaussianBlur(0.6))
         if name in FLAME_FROM:
             im, alpha = key_flames(im, alpha, FLAME_FROM[name])
             alpha = keep_ship(alpha)
+        cut[name] = im, alpha, alpha.point(lambda v: 255 if v > 8 else 0).getbbox()
+    for names in SAME_FRAME:
+        boxes = [cut[n][2] for n in names]
+        union = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+        for n in names:
+            cut[n] = cut[n][0], cut[n][1], union
+    for name, (file, width) in SHIPS.items():
+        src = SOURCE / file
+        im, alpha, box = cut[name]
         sprite = im.convert("RGBA")
         sprite.putalpha(alpha)
-        sprite = sprite.crop(alpha.point(lambda v: 255 if v > 8 else 0).getbbox())
+        sprite = sprite.crop(box)
         height = round(sprite.height * width / sprite.width)
         sprite = sprite.convert("RGBa").resize((width, height), Image.LANCZOS).convert("RGBA")
         dest = TARGET / f"{name}.png"

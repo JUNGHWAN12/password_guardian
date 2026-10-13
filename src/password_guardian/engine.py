@@ -1,4 +1,5 @@
 """Deterministic simulation. No graphics or filesystem side effects."""
+from collections import deque
 from dataclasses import dataclass
 import itertools
 import math
@@ -9,6 +10,14 @@ from .config import (FIELD, PLAYER_START, STEP, TUTORIAL_SECONDS, CHOICE_SECONDS
                      MAX_ENEMIES, MAX_ENEMY_BULLETS, MAX_PLAYER_BULLETS)
 from .content import load_content
 from .session import Session
+
+# kind: (hp, hit radius, entry speed, seconds between attacks)
+ENEMY_STATS = {"bot": (3, 25, -42, 1.5), "drone": (5, 31, -32, 2.0), "swarm": (2, 21, -85, 1.8),
+               "boss": (100, 95, 0, 1.8), "phish": (3, 22, -40, 1.6), "keylogger": (3, 24, -35, 1.4),
+               "mfa": (5, 30, -60, 3.0), "sprayer": (6, 28, -60, 4.0)}
+HOLD = {"mfa": (760, 14), "sprayer": (870, 16)}  # stop at this height, leave upward after these seconds
+PHISH_REVEAL = 1.2  # seconds a phishing lure looks like a guardian before its mask drops
+KEYLOGGER_DELAY = 1.2  # a keylogger shoots where the player was this long ago
 
 
 @dataclass
@@ -25,6 +34,10 @@ class Entity:
     age: float = 0
     ttl: float = 18
     damage: int = 1
+    burst: int = 0  # shots left in a burst or sweep
+    burst_in: float = 0
+    aim: float = 0
+    spin: int = 1
 
 
 def overlaps(a, b):
@@ -33,7 +46,7 @@ def overlaps(a, b):
 
 class Engine:
     def __init__(self, seed=None, practice=False):
-        self.questions, self.wave_specs = load_content()
+        self.questions, self.wave_specs, self.intros = load_content()
         self.rng = random.Random(seed)
         self.ids = itertools.count(1)
         self.practice = practice
@@ -56,6 +69,8 @@ class Engine:
         self.damage_flash = 0.0
         self.skill_center = PLAYER_START
         self.reinforcement_in = 4.0
+        self.clock = 0.0
+        self.trail = deque()  # recent player positions for keyloggers
 
     def start(self):
         if self.state != "TITLE":
@@ -76,6 +91,7 @@ class Engine:
         self.skill_cooldown = 0
         self.skill_flash = 0
         self.damage_flash = 0
+        self.trail.clear()
 
     def enter(self, state):
         self.state = state
@@ -85,6 +101,7 @@ class Engine:
             self.enemies.clear()
             self.player_bullets.clear()
             self.enemy_bullets.clear()
+            self.trail.clear()
             # The boss path overrides spawn relocation, so every stage starts from a safe spot.
             self.player.x, self.player.y = PLAYER_START
         elif state == "COMBAT":
@@ -174,6 +191,10 @@ class Engine:
         left, right, bottom, top = FIELD
         self.player.x = max(left+30, min(right-30, self.player.x))
         self.player.y = max(bottom+30, min(top-40, self.player.y))
+        self.clock += dt
+        self.trail.append((self.clock, self.player.x, self.player.y))
+        while self.trail[0][0] < self.clock - 2*KEYLOGGER_DELAY:
+            self.trail.popleft()
         self.shot_in -= dt
         if self.shot_in <= 0:
             self.shot_in += 0.25
@@ -190,8 +211,8 @@ class Engine:
             if self.stage == 2 and self.session.boss_defeated:
                 self.reinforcement_in -= dt
                 if self.reinforcement_in <= 0:
-                    self.spawn_enemy("bot")
-                    self.reinforcement_in += 4
+                    self.spawn_enemy("mfa")
+                    self.reinforcement_in += 8
         elif int(self.elapsed / 4) != int((self.elapsed+dt) / 4):
             self.spawn_enemy("bot")
 
@@ -203,11 +224,25 @@ class Engine:
             else:
                 e.x += e.vx*dt
                 e.y += e.vy*dt
-            e.fire_in -= dt
-            if e.fire_in <= 0:
-                self.fire_enemy(e)
-                e.fire_in += 1.5 if e.kind == "bot" else 2.0 if e.kind == "drone" else 1.8
-            if e.y < bottom-60 or e.x < left-100 or e.x > right+100 or e.age > e.ttl:
+            leaving = False
+            if e.kind in HOLD:
+                hold_y, stay = HOLD[e.kind]
+                if e.vy < 0 and e.y <= hold_y:
+                    e.y, e.vy = hold_y, 0
+                if e.age > stay:
+                    e.vy, e.burst = 90, 0  # done; withdraw upward without firing
+                leaving = e.vy > 0
+            if not leaving:
+                e.fire_in -= dt
+                if e.fire_in <= 0:
+                    self.fire_enemy(e)
+                    e.fire_in += ENEMY_STATS[e.kind][3]
+                e.burst_in -= dt
+                while e.burst > 0 and e.burst_in <= 0:
+                    self.burst_shot(e)
+                    e.burst_in += 0.18 if e.kind == "mfa" else 0.12
+            if (e.y < bottom-60 or e.y > top+140 or e.x < left-100 or e.x > right+100
+                    or e.age > e.ttl):
                 self.enemies.remove(e)
         for bullets in (self.player_bullets, self.enemy_bullets):
             for b in bullets[:]:
@@ -222,31 +257,46 @@ class Engine:
         if len(self.enemies) >= MAX_ENEMIES:
             return
         left, right, _, top = FIELD
-        hp = {"bot": 3, "drone": 5, "swarm": 2, "boss": 100}[kind]
+        hp, radius, vy, _ = ENEMY_STATS[kind]
         x, y = self.rng.uniform(left+100, right-100), top-20
-        vx, vy, radius = 0, -42, 25
-        if kind == "drone":
-            vy, radius = -32, 31
-        elif kind == "swarm":
+        vx, fire_in = 0, 1.0
+        if kind == "swarm":
             side = self.rng.choice((-1, 0, 1))
             if side:
                 x, y = (left+20 if side < 0 else right-20), self.rng.uniform(580, 830)
                 vx, vy = -side*75, -36
-            else:
-                vy = -85
-            radius = 21
         elif kind == "boss":
-            x, y, radius, vy = 780, 795, 95, 0
+            x, y = 780, 795
+        elif kind == "phish":
+            fire_in = PHISH_REVEAL + 0.3  # the reveal flash is the warning
+        elif kind in HOLD:
+            x, y = self.rng.uniform(left+150, right-150), top+60  # glide in from above, then hold
+            fire_in = (y - HOLD[kind][0]) / -vy + 0.3
         if math.hypot(x-self.player.x, y-self.player.y) < 150:
             x = right-100 if self.player.x < 780 else left+100
         self.enemies.append(Entity(next(self.ids), kind, x, y, radius, vx, vy, hp,
-                                   fire_in=1.0, ttl=60 if kind == "boss" else 25))
+                                   fire_in=fire_in, ttl=60 if kind == "boss" else 25,
+                                   spin=self.rng.choice((-1, 1)) if kind == "sprayer" else 1))
 
     def fire_enemy(self, e):
         angle = math.atan2(self.player.y-e.y, self.player.x-e.x)
         kind, speed = "guess", 170
         angles = [angle]
-        if e.kind == "drone":
+        if e.kind == "mfa":  # a burst of login-approval prompts
+            e.burst, e.burst_in, e.aim = 8, 0, angle
+            return
+        if e.kind == "sprayer":  # one common password swept across many accounts
+            e.spin = -e.spin
+            e.burst, e.burst_in, e.aim = 13, 0, -math.pi/2 - e.spin*math.radians(60)
+            return
+        if e.kind == "phish":
+            kind, speed = "hook", 190
+        elif e.kind == "keylogger":
+            past = next((p for p in reversed(self.trail) if p[0] <= self.clock - KEYLOGGER_DELAY),
+                        self.trail[0] if self.trail else (0, self.player.x, self.player.y))
+            angles = [math.atan2(past[2]-e.y, past[1]-e.x)]
+            kind, speed = "keycap", 200
+        elif e.kind == "drone":
             angles = [angle + math.radians(v) for v in (-30, -15, 0, 15, 30)]
             kind, speed = "dict", 150
         elif e.kind == "swarm":
@@ -265,10 +315,21 @@ class Engine:
                 kind = "leak"
             speed = 180
         for a in angles:
-            if len(self.enemy_bullets) >= MAX_ENEMY_BULLETS:
-                break
+            self.shoot(e, kind, a, speed)
+
+    def burst_shot(self, e):
+        if e.kind == "mfa":
+            k = 8 - e.burst
+            self.shoot(e, "bell", e.aim + math.radians(-20 + 40*k/7), 140)
+        else:
+            k = 13 - e.burst
+            self.shoot(e, "guess", e.aim + e.spin*math.radians(120)*k/12, 160)
+        e.burst -= 1
+
+    def shoot(self, e, kind, angle, speed):
+        if len(self.enemy_bullets) < MAX_ENEMY_BULLETS:
             self.enemy_bullets.append(Entity(next(self.ids), kind, e.x, e.y-15, 8,
-                                             math.cos(a)*speed, math.sin(a)*speed, ttl=12))
+                                             math.cos(angle)*speed, math.sin(angle)*speed, ttl=12))
 
     def collisions(self):
         for b in self.player_bullets[:]:
