@@ -93,7 +93,7 @@ def load_textures():
     for key, name in names.items():
         path = ROOT / "assets/images" / f"{name}.png"
         if not path.exists():
-            raise FileNotFoundError(f"에셋이 없습니다: {path}. python tools/prepare_prototype_assets.py를 실행하세요.")
+            raise FileNotFoundError(f"에셋이 없습니다: {path}. tools/prepare_generated_ships.py(기체)나 tools/prepare_prototype_assets.py(임시 배경)를 실행하세요.")
         textures[key] = arcade.load_texture(path)
     textures.update(bullet_textures())
     return textures

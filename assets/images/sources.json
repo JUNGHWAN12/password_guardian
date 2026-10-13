@@ -1,40 +1,5 @@
 [
   {
-    "file": "assets/images/player.png",
-    "original": "assets/candidates/space-shooter-remastered/pack/PNG/playerShip2_blue.png",
-    "license": "CC0-1.0",
-    "edit": "unchanged",
-    "sha256": "c8b490d7658bd2ee0f0bd6eb761d0dd3cce7a6381efd9831bb62e75aa1348352"
-  },
-  {
-    "file": "assets/images/guess_bot.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_001.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (255, 154, 48)",
-    "sha256": "8d794c2a8eb05eda1f2aa6e671f999d16c4810469c3d92ba31a2aef2641ceeb3"
-  },
-  {
-    "file": "assets/images/dictionary_drone.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_003.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (188, 91, 245)",
-    "sha256": "4d5cfb7e457e8dd9761f89e8d01f6c6d4428303399262dd64110cf1732cd0a5f"
-  },
-  {
-    "file": "assets/images/leaked_swarm.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_004.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (255, 163, 55)",
-    "sha256": "d7fb8759d9d8a5350dfe0f5b14fe9116bb2a5716321d1d8bca53bb86b4905324"
-  },
-  {
-    "file": "assets/images/intruder.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_005.png",
-    "license": "CC0-1.0",
-    "edit": "unchanged",
-    "sha256": "46f0839db91ce20a9e58470a6a0026a149a8b9b72551d87622296fcce00824d8"
-  },
-  {
     "file": "assets/images/player_bullet.png",
     "original": "assets/candidates/space-shooter-remastered/pack/PNG/Lasers/laserBlue01.png",
     "license": "CC0-1.0",
@@ -46,5 +11,45 @@
     "original": "assets/candidates/review/digital_vault_background_proposal.png",
     "edit": "prototype composite, see ASSET_MANIFEST.md",
     "license": "Kenney base tile CC0 + project geometry"
+  },
+  {
+    "file": "assets/images/player.png",
+    "original": "assets/generated/player.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 152x214",
+    "sha256": "ad538a36e012578bc51edb66dd87e43d0e81a2db12b94b07947ecd6b011adfaf"
+  },
+  {
+    "file": "assets/images/guess_bot.png",
+    "original": "assets/generated/guess_bot.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 60x235",
+    "sha256": "21773101566d7e0cb1425c9804066c2eb688e99b43844c5449fcf764209678d7"
+  },
+  {
+    "file": "assets/images/dictionary_drone.png",
+    "original": "assets/generated/dictionary_drone.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 220x162",
+    "sha256": "09dd131aceb1aea8d85b67f010a623b8153282abe6c73ad551f629629c398c6a"
+  },
+  {
+    "file": "assets/images/leaked_swarm.png",
+    "original": "assets/generated/leaked_swarm.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 128x162",
+    "sha256": "1ea5c48cdae23886531a7ac72a7d9af5ecb0e954c653ea232986c592db45d71a"
+  },
+  {
+    "file": "assets/images/intruder.png",
+    "original": "assets/generated/intruder.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 400x482",
+    "sha256": "dfc61bd1b4962066daf8f24acfa48be3ddb710772bf79b8654b36f982cbda1bc"
   }
 ]

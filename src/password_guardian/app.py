@@ -179,7 +179,7 @@ class GuardianWindow(arcade.Window):
     def sync_sprites(self):
         e = self.engine
         groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
-        widths = {"player": 88, "bot": 78, "drone": 108, "swarm": 58, "boss": 240}  # bullets: drawn at size
+        widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200}  # bullets: drawn at size
         for group, entities in groups.items():
             mapping = self.sprite_maps[group]
             live = {entity.id for entity in entities}
@@ -274,7 +274,7 @@ class GuardianWindow(arcade.Window):
         self.txt("eyebrow", "DIGITAL SECURITY / INTERACTIVE MISSION", 100, 983, 18, CYAN)
         self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True, leading=1.1)
         self.txt("subtitle", "계정을 노리는 공격으로부터\n디지털 금고를 지켜라!", 102, 654, 30, MUTED, width=800)
-        self.image("player", 895, 649 + math.sin(self.clock*1.5)*8, 270)
+        self.image("player", 895, 649 + math.sin(self.clock*1.5)*8, 190)
         arcade.draw_circle_outline(895, 652, 188, (40, 115, 134), 2)
         arcade.draw_circle_outline(895, 652, 213, (25, 55, 72), 1)
         self.panel(100, 358, 1010, 125)

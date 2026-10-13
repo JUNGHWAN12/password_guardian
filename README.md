@@ -52,7 +52,7 @@ python -m venv .venv
 - 일반 적 50점, 보스 500점. 보스를 일찍 잡으면 약한 적이 이어서 등장하며 전체 진행 시간은 유지됩니다.
 - 결과에는 점수·게임 등급·처치·부활·선택 기록·학습 메시지와 로컬 순위가 나옵니다.
 
-기체는 Kenney CC0 이미지, 배경은 임시 금고 합성 시안입니다. 적 장갑은 참고 방향에 맞춰 주황·보라로 편집했습니다. 사용자 참고 보드 수준의 최종 원화, 배경 5장, 효과음·음악은 아직 적용하지 않았습니다.
+기체 5종은 생성형 AI로 만든 이미지이고, 배경은 임시 금고 합성 시안입니다. 배경 5장과 효과음·음악은 아직 적용하지 않았습니다.
 
 ## 로컬 랭킹
 
@@ -102,7 +102,8 @@ python tools/smoke_test.py
 | `data/choices.json`, `data/waves.json` | 보안 문항과 적 생성 시간표 |
 | `assets/images/sources.json` | 실제 사용한 임시 에셋의 원본·편집 내역 |
 | `assets/fonts/` | 한글 글꼴 IBM Plex Sans KR 일반·굵게, 라이선스와 출처(`source.json`) |
+| `assets/generated/` | 생성형 AI 기체 원본 JPG와 출처(`source.json`) |
 
-원본 후보에서 임시 게임 이미지를 다시 만들 때는 `python tools/prepare_prototype_assets.py`를 실행합니다. 이 작업에는 후보 폴더와 Pillow가 필요합니다. 후보 갤러리 생성 스크립트와 별개이며 게임 실행 시에는 필요하지 않습니다.
+기체 원본(`assets/generated/`)에서 게임용 PNG를 다시 만들 때는 `python tools/prepare_generated_ships.py`를 실행합니다. 생성 도구가 그려 넣은 가짜 체크무늬 배경과 'AI' 표시를 지우고, 기체 경계로 잘라 표시 폭의 2배 크기로 저장합니다. 임시 배경(`vault.png`)은 `python tools/prepare_prototype_assets.py`로 만듭니다. 두 도구 모두 Pillow가 필요하며 게임 실행 시에는 필요하지 않습니다.
 
 다음 개선 대상은 실제 초보 플레이어를 통한 난이도 조정, 최종 원화·배경·사운드, 부스 PC에서의 장시간 운영 확인입니다. 남은 작업의 우선순위와 순서는 [추후 구현계획서](추후_구현계획서.md)에 정리했습니다. 참조 문서는 [구현계획서](프로그램_구현계획서.md), [시각 제작 기준](assets/VISUAL_DIRECTION.md), [에셋 라이선스](assets/LICENSES.md)입니다.
