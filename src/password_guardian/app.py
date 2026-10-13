@@ -7,7 +7,7 @@ from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
-from .engine import Engine, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
+from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .rankings import Board, RankingWorker, participant_code
 
 INK = (7, 14, 24)
@@ -381,7 +381,7 @@ class GuardianWindow(arcade.Window):
                     arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+16, RED, 3)
             if enemy.kind == "boss":
                 self.panel(505, 865, 550, 31, fill=(35, 18, 31, 240), edge=(90, 48, 60))
-                arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/100, 19, RED)
+                arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/ENEMY_STATS["boss"][0], 19, RED)
                 self.txt("boss-name", "침입자", 780, 937, 22, RED, anchor="center")
                 if enemy.age % 8 < 0.6:
                     self.txt("boss-warning", "공격 패턴 전환", 780, 845, 26, GOLD, anchor="center")

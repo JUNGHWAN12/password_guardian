@@ -12,8 +12,8 @@ from .content import load_content
 from .session import Session
 
 # kind: (hp, hit radius, entry speed, seconds between attacks)
-ENEMY_STATS = {"bot": (3, 25, -42, 1.5), "drone": (5, 31, -32, 2.0), "swarm": (2, 21, -85, 1.8),
-               "boss": (100, 95, 0, 1.8), "phish": (3, 22, -40, 1.6), "keylogger": (3, 24, -35, 1.4),
+ENEMY_STATS = {"bot": (2, 25, -55, 1.5), "drone": (4, 31, -36, 2.0), "swarm": (2, 21, -85, 1.8),
+               "boss": (400, 95, 0, 1.8), "phish": (3, 22, -40, 1.6), "keylogger": (3, 24, -35, 1.4),
                "mfa": (5, 30, -60, 3.0), "sprayer": (6, 28, -60, 4.0),
                "surfer": (4, 30, -60, math.inf), "gift": (6, 30, -35, math.inf)}
 HOLD = {"mfa": (760, 14), "sprayer": (870, 16), "surfer": (820, 16)}  # stop at this height, leave upward after these seconds
@@ -25,6 +25,7 @@ SIGHT_STARE, SIGHT_BLINK = 0.8, 0.3  # seconds in view before the lens blinks, t
 WEAPON_PATTERNS = {1: [(0, 0)], 2: [(-11, 0), (11, 0)], 3: [(-11, 0), (11, 0), (-18, -12), (18, 12)],
                    4: [(-16, 0), (0, 0), (16, 0), (-20, -12), (20, 12)]}
 HOMING_TURN = 5.0  # rad/s
+FORMATION_GAP = 75  # px between ships in a line or V
 # Every DROP_EVERY-th defeat drops the next item of DROP_CYCLE, so drops never depend on luck.
 DROP_EVERY = 3
 DROP_CYCLE = ("patch", "badge", "backup", "patch", "badge", "vaccine", "badge", "firewall")
@@ -142,7 +143,8 @@ class Engine:
                     continue
                 t, i = float(spec["start"]), 0
                 while t < spec["end"]:
-                    self.events.append((t, spec["kinds"][i % len(spec["kinds"])], spec["count"]))
+                    self.events.append((t, spec["kinds"][i % len(spec["kinds"])], spec["count"],
+                                        spec.get("formation", "scatter")))
                     i += 1
                     t = spec["start"] + i * spec["interval"]
             self.events.sort()
@@ -233,9 +235,8 @@ class Engine:
             self.fire_player()
         if self.state == "COMBAT":
             while self.event_index < len(self.events) and self.events[self.event_index][0] <= self.elapsed+1e-9:
-                _, kind, count = self.events[self.event_index]
-                for _ in range(count):
-                    self.spawn_enemy(kind)
+                _, kind, count, formation = self.events[self.event_index]
+                self.spawn_group(kind, count, formation)
                 self.event_index += 1
             if self.stage == 2 and self.session.boss_defeated:
                 self.reinforcement_in -= dt
@@ -292,7 +293,29 @@ class Engine:
                     bullets.remove(b)
         self.collisions()
 
-    def spawn_enemy(self, kind):
+    def spawn_group(self, kind, count, formation):
+        left, right, _, top = FIELD
+        if formation == "scatter":
+            for _ in range(count):
+                self.spawn_enemy(kind)
+            return
+        gap = FORMATION_GAP
+        center = self.rng.uniform(left + 100 + gap*(count-1)/2, right - 100 - gap*(count-1)/2)
+        for i in range(count):
+            before = len(self.enemies)
+            offset = i - (count-1)/2
+            if formation == "line":
+                self.spawn_enemy(kind, (center + offset*gap, top-20))
+            elif formation == "v":  # the leader comes first, wings trail behind
+                self.spawn_enemy(kind, (center + offset*gap, top-20 + abs(offset)*45))
+            else:  # "sides": alternate edges, sliding inward
+                side = -1 if i % 2 == 0 else 1
+                x = left+20 if side < 0 else right-20
+                self.spawn_enemy(kind, (x, 820 - (i//2)*70), (-side*80, -40))
+            if len(self.enemies) > before and math.isfinite(self.enemies[-1].fire_in):
+                self.enemies[-1].fire_in += 0.2*i  # a ripple, not one wall of bullets
+
+    def spawn_enemy(self, kind, at=None, velocity=None):
         if len(self.enemies) >= MAX_ENEMIES:
             return
         left, right, _, top = FIELD
@@ -311,6 +334,10 @@ class Engine:
         elif kind in HOLD:
             x, y = self.rng.uniform(left+150, right-150), top+60  # glide in from above, then hold
             fire_in = (y - HOLD[kind][0]) / -vy + 0.3
+        if at is not None:
+            x, y = at
+        if velocity is not None:
+            vx, vy = velocity
         if ENEMY_STATS[kind][3] == math.inf:
             fire_in = math.inf  # attacks on its own terms (view cone, opening), never on a timer
         if math.hypot(x-self.player.x, y-self.player.y) < 150:

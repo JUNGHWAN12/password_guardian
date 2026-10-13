@@ -31,7 +31,8 @@ class Result:
 
 
 def grade_for(score):
-    return "S" if score >= 2000 else "A" if score >= 1400 else "B" if score >= 800 else "C"
+    # Set from simulated runs after the density change: standing still ~1,000-4,700, steady movement 4,000-8,800.
+    return "S" if score >= 6500 else "A" if score >= 4500 else "B" if score >= 2500 else "C"
 
 
 @dataclass

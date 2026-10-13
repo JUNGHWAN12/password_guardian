@@ -5,7 +5,8 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from password_guardian.config import FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS
+from password_guardian.config import (FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS,
+                                      MAX_ENEMIES, MAX_ENEMY_BULLETS)
 from password_guardian.engine import (Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, DROP_CYCLE, FIREWALL_SECONDS,
                                       SHIELD_MAX, overlaps)
 from password_guardian.session import Session, grade_for
@@ -33,7 +34,7 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(engine.state, "COMBAT")
         self.assertAlmostEqual(engine.elapsed, 1.25, places=6)
         self.assertEqual(engine.event_index, 1)
-        self.assertEqual(len(engine.enemies), 1)
+        self.assertEqual(len(engine.enemies) + engine.session.enemy_kills, 3)  # the opening line of three
 
     def test_choice_early_answer_waits_for_fixed_boundary(self):
         engine = Engine()
@@ -188,10 +189,10 @@ class CombatTests(unittest.TestCase):
         engine = self.combat()
         for _ in range(50):
             engine.spawn_enemy("drone")
-        self.assertEqual(len(engine.enemies), 20)
+        self.assertEqual(len(engine.enemies), MAX_ENEMIES)
         for _ in range(100):
             engine.fire_enemy(engine.enemies[0])
-        self.assertEqual(len(engine.enemy_bullets), 250)
+        self.assertEqual(len(engine.enemy_bullets), MAX_ENEMY_BULLETS)
 
     def test_shift_switches_to_precise_speed(self):
         engine = self.combat()
@@ -311,7 +312,7 @@ class AttackTests(unittest.TestCase):
                                 (2, {"mfa": 1, "surfer": 1})):
             engine.stage = stage
             engine.enter("COMBAT")
-            counts = Counter(kind for _, kind, _ in engine.events)
+            counts = Counter(kind for _, kind, _, _ in engine.events)
             self.assertEqual({k: counts[k] for k in expected}, expected)
             self.assertTrue(all(kind in engine.intros or kind in ("bot", "drone", "swarm") for kind in counts))
 
@@ -347,6 +348,21 @@ class AttackTests(unittest.TestCase):
         engine.defeat(engine.enemies[0])
         engine.update(7)
         self.assertEqual((engine.enemies, engine.enemy_bullets, engine.session.score), ([], [], 50))
+
+    def test_formations_place_ships_in_shape(self):
+        engine = Engine(seed=3)
+        engine.state = "COMBAT"
+        engine.spawn_group("bot", 3, "line")
+        line = engine.enemies[:]
+        self.assertEqual({e.y for e in line}, {line[0].y})
+        self.assertEqual([round(b.x-a.x) for a, b in zip(line, line[1:])], [75, 75])
+        self.assertEqual([round(e.fire_in, 2) for e in line], [1.0, 1.2, 1.4])
+        engine.enemies.clear()
+        engine.spawn_group("bot", 5, "v")
+        self.assertEqual(min(engine.enemies, key=lambda e: e.y).x, engine.enemies[2].x)  # leader in front
+        engine.enemies.clear()
+        engine.spawn_group("swarm", 4, "sides")
+        self.assertEqual([e.vx > 0 for e in engine.enemies], [True, False, True, False])
 
     def test_alert_bombers_reinforce_after_the_boss(self):
         engine = self.combat()
@@ -435,7 +451,7 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual((session.score, session.shield, session.damage, session.skills), (600, 2, 2, 5))
 
     def test_grade_boundaries(self):
-        self.assertEqual([grade_for(n) for n in (0, 799, 800, 1399, 1400, 1999, 2000)], list("CCBBAAS"))
+        self.assertEqual([grade_for(n) for n in (0, 2499, 2500, 4499, 4500, 6499, 6500)], list("CCBBAAS"))
 
 
 if __name__ == "__main__":
