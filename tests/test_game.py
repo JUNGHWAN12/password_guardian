@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from password_guardian.config import FIELD, PLAYER_START, STEP
+from password_guardian.config import FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS
 from password_guardian.engine import Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, overlaps
 from password_guardian.session import Session, grade_for
 
@@ -192,6 +192,15 @@ class CombatTests(unittest.TestCase):
             engine.fire_enemy(engine.enemies[0])
         self.assertEqual(len(engine.enemy_bullets), 250)
 
+    def test_shift_switches_to_precise_speed(self):
+        engine = self.combat()
+        engine.update(0.5, (1, 0))
+        self.assertAlmostEqual(engine.player.x, PLAYER_START[0] + PLAYER_SPEED*0.5)
+        engine.update(0.5, (-1, 0), precise=True)
+        self.assertAlmostEqual(engine.player.x, PLAYER_START[0] + (PLAYER_SPEED-PRECISE_SPEED)*0.5)
+        self.assertTrue(engine.precise)
+        self.assertEqual(engine.player.radius, PLAYER_HIT_RADIUS)
+
     def test_choice_freezes_combat(self):
         engine = self.combat()
         engine.spawn_enemy("bot")
@@ -250,12 +259,12 @@ class AttackTests(unittest.TestCase):
         engine.spawn_enemy("keylogger")
         logger = engine.enemies[0]
         logger.x, logger.y, logger.vy = 780, 800, 0
-        engine.update(0.5, (1, 0))   # run right to x=930
-        engine.update(1.4)           # wait there
-        engine.update(0.55, (-1, 0))  # run back left; the 2.4 s shot uses the 1.2 s position
+        engine.update(0.5, (1, 0), precise=True)   # creep right to x=900
+        engine.update(1.4)                          # wait there
+        engine.update(0.55, (-1, 0), precise=True)  # creep back left; the 2.4 s shot uses the 1.2 s position
         self.assertLess(engine.player.x, 800)
         shot = engine.enemy_bullets[-1]
-        expected = math.atan2(PLAYER_START[1]-800, 930-780)
+        expected = math.atan2(PLAYER_START[1]-800, 900-780)
         self.assertAlmostEqual(math.atan2(shot.vy, shot.vx), expected, places=2)
         self.assertEqual((len(engine.enemy_bullets), shot.kind), (2, "keycap"))
         self.assertEqual(KEYLOGGER_DELAY, 1.2)

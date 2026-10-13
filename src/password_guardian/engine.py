@@ -5,7 +5,7 @@ import itertools
 import math
 import random
 
-from .config import (FIELD, PLAYER_START, STEP, TUTORIAL_SECONDS, CHOICE_SECONDS,
+from .config import (FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS, TUTORIAL_SECONDS, CHOICE_SECONDS,
                      ANSWER_SECONDS, COMBAT_SECONDS, RESULT_SECONDS,
                      MAX_ENEMIES, MAX_ENEMY_BULLETS, MAX_PLAYER_BULLETS)
 from .content import load_content
@@ -64,7 +64,7 @@ class Engine:
         self.result = None
         self.events = []
         self.event_index = 0
-        self.player = Entity(0, "player", *PLAYER_START, 18)
+        self.player = Entity(0, "player", *PLAYER_START, PLAYER_HIT_RADIUS)
         self.enemies = []
         self.player_bullets = []
         self.enemy_bullets = []
@@ -74,6 +74,7 @@ class Engine:
         self.skill_flash = 0.0
         self.damage_flash = 0.0
         self.skill_center = PLAYER_START
+        self.precise = False
         self.reinforcement_in = 4.0
         self.clock = 0.0
         self.trail = deque()  # recent player positions for keyloggers
@@ -151,20 +152,20 @@ class Engine:
             return False
         return self.session.choose(self.stage, selection, self.questions[self.stage]["correct"])
 
-    def update(self, dt, movement=(0, 0)):
+    def update(self, dt, movement=(0, 0), precise=False):
         if dt < 0 or not math.isfinite(dt):
             raise ValueError("delta_time must be finite and nonnegative")
         while dt > 1e-9 and self.state != "TITLE":
             step = min(STEP, dt, self.remaining)
             if step > 1e-9:
-                self.tick(step, movement)
+                self.tick(step, movement, precise)
                 self.elapsed += step
                 dt -= step
             if self.state == "CHOICE" and self.elapsed >= ANSWER_SECONDS-1e-9:
                 self.session.choose(self.stage, None, self.questions[self.stage]["correct"])
             if self.remaining < 1e-8:
                 self.advance()
-                movement = (0, 0)  # held keys never carry through a stage boundary
+                movement, precise = (0, 0), False  # held keys never carry through a stage boundary
 
     def advance(self):
         if self.state == "TUTORIAL":
@@ -182,18 +183,20 @@ class Engine:
         elif self.state == "RESULT":
             self.enter("TITLE")
 
-    def tick(self, dt, movement):
+    def tick(self, dt, movement, precise=False):
         if self.state not in ("COMBAT", "TUTORIAL"):
             return
         self.invulnerable = max(0, self.invulnerable-dt)
         self.skill_cooldown = max(0, self.skill_cooldown-dt)
         self.skill_flash = max(0, self.skill_flash-dt)
         self.damage_flash = max(0, self.damage_flash-dt)
+        self.precise = precise
         dx, dy = movement
         length = math.hypot(dx, dy)
         if length:
-            self.player.x += dx / length * 300 * dt
-            self.player.y += dy / length * 300 * dt
+            speed = PRECISE_SPEED if precise else PLAYER_SPEED
+            self.player.x += dx / length * speed * dt
+            self.player.y += dy / length * speed * dt
         left, right, bottom, top = FIELD
         self.player.x = max(left+30, min(right-30, self.player.x))
         self.player.y = max(bottom+30, min(top-40, self.player.y))

@@ -173,7 +173,8 @@ class GuardianWindow(arcade.Window):
             return
         movement = (int(arcade.key.RIGHT in self.keys)-int(arcade.key.LEFT in self.keys),
                     int(arcade.key.UP in self.keys)-int(arcade.key.DOWN in self.keys))
-        self.engine.update(delta_time, movement)
+        precise = arcade.key.LSHIFT in self.keys or arcade.key.RSHIFT in self.keys
+        self.engine.update(delta_time, movement, precise)
         self.banner_left = max(0, self.banner_left-delta_time)
         if self.engine.state == "COMBAT":
             for enemy in self.engine.enemies:
@@ -293,8 +294,8 @@ class GuardianWindow(arcade.Window):
         self.txt("start-key", "ENTER", 140, 445, 33, CYAN, bold=True)
         self.txt("start-label", "보안 수호 임무 시작", 330, 447, 29, bold=True)
         self.txt("start-time", "1인 플레이   /   약 4분   /   끝까지 체험 가능", 330, 399, 19, MUTED)
-        for i, (key, action) in enumerate((("방향키", "이동"), ("자동", "발사"), ("SPACE", "방어 스킬"), ("1 · 2", "보안 선택"))):
-            x = 104+i*260
+        for i, (key, action) in enumerate((("방향키", "이동"), ("SHIFT", "정밀 이동"), ("자동", "발사"), ("SPACE", "방어 스킬"), ("1 · 2", "보안 선택"))):
+            x = 104+i*215
             self.txt(f"control-key{i}", key, x, 297, 25, CYAN, bold=True)
             self.txt(f"control-label{i}", action, x, 251, 20, MUTED)
         self.txt("title-learning", "길게 만들고 · 다르게 쓰고 · 한 번 더 확인하세요", 100, 154, 23, WHITE)
@@ -353,6 +354,9 @@ class GuardianWindow(arcade.Window):
                 self.sight(enemy)
         for group in ("enemies", "shots", "threats", "player"):
             self.sprite_lists[group].draw()
+        if e.precise:  # show the real hit point while moving precisely
+            arcade.draw_circle_filled(e.player.x, e.player.y, e.player.radius+2, (*RED, 230))
+            arcade.draw_circle_filled(e.player.x, e.player.y, e.player.radius-2, WHITE)
         if s.shield or e.invulnerable:
             arcade.draw_circle_outline(e.player.x, e.player.y, 52, CYAN if s.shield else GOLD, 2)
         if e.skill_flash:
@@ -386,7 +390,7 @@ class GuardianWindow(arcade.Window):
             self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
             self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
         self.draw_sidebar()
-        self.txt("game-footer", "방향키 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
+        self.txt("game-footer", "방향키 이동     SHIFT 정밀 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")
 
     def draw_sidebar(self):
@@ -412,7 +416,7 @@ class GuardianWindow(arcade.Window):
         self.panel(295, 546, 970, 305, fill=(10, 27, 41, 245), edge=(55, 126, 140))
         self.txt("tutorial-tag", f"조작 연습  ·  {math.ceil(self.engine.remaining)}초 후 시작", 335, 814, 23, CYAN)
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
-        self.txt("tutorial-body", "방향키로 이동하면 탄환은 자동으로 발사됩니다.\nSpace로 주변 탄환을 지워 보세요. 연습 기록은 저장되지 않아요.", 335, 691, 22, MUTED, width=890)
+        self.txt("tutorial-body", "방향키로 움직이면 자동 발사돼요. Shift를 누르면 천천히 움직이고\n맞는 곳(빨간 점)이 보여요. Space는 주변 탄환을 지워요.", 335, 691, 22, MUTED, width=890)
         self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
 
     def draw_choice(self):
