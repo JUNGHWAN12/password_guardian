@@ -15,6 +15,7 @@ def load_fonts():
 
 # Each attack fires what it stands for. Bullets are drawn at 1920x1080 screen size.
 ORANGE, PURPLE, RED, CYAN = (255, 154, 48), (196, 120, 255), (255, 96, 120), (77, 221, 228)
+GOLD = (255, 205, 90)
 PINK, LIME, KEYTOP = (255, 92, 170), (170, 240, 60), (226, 230, 238)
 INK = (18, 10, 26)
 SS = 4  # supersampling for smooth edges
@@ -41,13 +42,13 @@ def _label(draw, box, text, size, ink=INK):
     draw.text(((x0 + x1 - (right - left)) / 2 - left, (y0 + y1 - (bottom - top)) / 2 - top), text, font=font, fill=ink)
 
 
-def _padlock():
+def _padlock(color=CYAN):
     im, d = _canvas(18, 22)
     s = SS
-    d.arc((4 * s, 1 * s, 14 * s, 13 * s), 180, 360, fill=CYAN, width=3 * s)
-    d.line((4 * s + s, 7 * s, 4 * s + s, 10 * s), fill=CYAN, width=3 * s)
-    d.line((14 * s - 2 * s, 7 * s, 14 * s - 2 * s, 10 * s), fill=CYAN, width=3 * s)
-    d.rounded_rectangle((1 * s, 9 * s, 17 * s, 21 * s), radius=3 * s, fill=CYAN, outline=(225, 255, 255), width=s)
+    d.arc((4 * s, 1 * s, 14 * s, 13 * s), 180, 360, fill=color, width=3 * s)
+    d.line((4 * s + s, 7 * s, 4 * s + s, 10 * s), fill=color, width=3 * s)
+    d.line((14 * s - 2 * s, 7 * s, 14 * s - 2 * s, 10 * s), fill=color, width=3 * s)
+    d.rounded_rectangle((1 * s, 9 * s, 17 * s, 21 * s), radius=3 * s, fill=color, outline=(225, 255, 255), width=s)
     d.ellipse((7 * s, 12 * s, 11 * s, 16 * s), fill=INK)
     d.rectangle((8 * s, 15 * s, 10 * s, 19 * s), fill=INK)
     return im
@@ -126,7 +127,7 @@ def _diamond():
 def bullet_textures():
     # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
     # bell (approval prompts), keycap (keylogger) and an eye diamond (shoulder surfer) for the newer attacks.
-    return {"player_bullet": _texture(_padlock(), "padlock"), "guess": _texture(_bubble("?", ORANGE), "guess"),
+    return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_bubble("?", ORANGE), "guess"),
             "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
             "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap"),
             "peek": _texture(_diamond(), "peek")}

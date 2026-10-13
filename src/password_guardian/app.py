@@ -404,7 +404,7 @@ class GuardianWindow(arcade.Window):
         self.txt("health-label", f"체력  {s.hp} / 3", x, 733, 20, WHITE)
         self.txt("shield-label", f"보호막       {s.shield}", x, 678, 22, CYAN)
         self.txt("skill-label", f"방어 스킬    {s.skills}", x, 626, 22, GOLD)
-        self.txt("damage-label", f"공격력       ×{s.damage}", x, 574, 22, WHITE)
+        self.txt("damage-label", f"공격력   Lv.{s.weapon}  ×{s.damage}", x, 574, 22, WHITE)
         self.txt("kills-label", f"적 처치      {s.enemy_kills}", x, 510, 20, MUTED)
         self.txt("revive-label", f"부활         {s.revive_count}", x, 466, 20, MUTED)
         arcade.draw_line(x, 420, 1820, 420, EDGE, 2)

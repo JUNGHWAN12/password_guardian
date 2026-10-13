@@ -201,6 +201,41 @@ class CombatTests(unittest.TestCase):
         self.assertTrue(engine.precise)
         self.assertEqual(engine.player.radius, PLAYER_HIT_RADIUS)
 
+    def test_weapon_levels_widen_the_volley(self):
+        engine = self.combat()
+        counts = []
+        for level in range(1, 5):
+            engine.session.weapon = level
+            engine.player_bullets.clear()
+            engine.volley = 1  # the next volley is even: no homing locks
+            engine.fire_player()
+            counts.append(len(engine.player_bullets))
+        self.assertEqual(counts, [1, 2, 4, 5])
+        engine.player_bullets.clear()
+        engine.fire_player()
+        self.assertEqual([b.kind for b in engine.player_bullets].count("player_homing"), 2)
+
+    def test_power_up_caps_and_survives_hits(self):
+        engine = self.combat()
+        self.assertEqual([engine.session.power_up() for _ in range(4)], [True, True, True, False])
+        engine.hurt()
+        engine.invulnerable = 0
+        engine.hurt(); engine.invulnerable = 0
+        engine.hurt()  # revive
+        self.assertEqual((engine.session.revive_count, engine.session.weapon), (1, 4))
+
+    def test_homing_lock_turns_toward_the_nearest_enemy(self):
+        engine = self.combat()
+        engine.shot_in = 1e9
+        engine.spawn_enemy("drone")
+        drone = engine.enemies[0]
+        drone.x, drone.y, drone.vy, drone.fire_in = 300, 700, 0, 1e9
+        lock = Entity(99, "player_homing", 780, 300, 5, 0, 520, ttl=3)
+        engine.player_bullets.append(lock)
+        engine.update(0.3)
+        self.assertLess(lock.vx, 0)  # bending left toward the drone
+        self.assertAlmostEqual(math.hypot(lock.vx, lock.vy), 520)
+
     def test_choice_freezes_combat(self):
         engine = self.combat()
         engine.spawn_enemy("bot")

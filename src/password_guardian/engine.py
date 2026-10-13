@@ -21,6 +21,10 @@ PHISH_REVEAL = 1.2  # seconds a phishing lure looks like a guardian before its m
 KEYLOGGER_DELAY = 1.2  # a keylogger shoots where the player was this long ago
 SIGHT_HALF, SIGHT_SWING, SIGHT_PERIOD = math.radians(15), math.radians(40), 4.0  # shoulder surfer's view cone
 SIGHT_STARE, SIGHT_BLINK = 0.8, 0.3  # seconds in view before the lens blinks, then the shot
+# weapon level: (x offset, degrees off straight up) per shot; level 4 adds two homing locks every other volley
+WEAPON_PATTERNS = {1: [(0, 0)], 2: [(-11, 0), (11, 0)], 3: [(-11, 0), (11, 0), (-18, -12), (18, 12)],
+                   4: [(-16, 0), (0, 0), (16, 0), (-20, -12), (20, 12)]}
+HOMING_TURN = 5.0  # rad/s
 GIFT_OPEN_Y, GIFT_OPEN_AGE = 560, 6.0  # a trojan gift opens at this height or age unless destroyed first
 
 
@@ -74,6 +78,7 @@ class Engine:
         self.skill_flash = 0.0
         self.damage_flash = 0.0
         self.skill_center = PLAYER_START
+        self.volley = 0
         self.precise = False
         self.reinforcement_in = 4.0
         self.clock = 0.0
@@ -207,10 +212,7 @@ class Engine:
         self.shot_in -= dt
         if self.shot_in <= 0:
             self.shot_in += 0.25
-            if len(self.player_bullets) < MAX_PLAYER_BULLETS:
-                self.player_bullets.append(Entity(next(self.ids), "player_bullet", self.player.x,
-                                                 self.player.y+32, 5, vy=700,
-                                                 damage=self.session.damage, ttl=3))
+            self.fire_player()
         if self.state == "COMBAT":
             while self.event_index < len(self.events) and self.events[self.event_index][0] <= self.elapsed+1e-9:
                 _, kind, count = self.events[self.event_index]
@@ -260,6 +262,8 @@ class Engine:
                 self.enemies.remove(e)
         for bullets in (self.player_bullets, self.enemy_bullets):
             for b in bullets[:]:
+                if b.kind == "player_homing":
+                    self.steer(b, dt)
                 b.x += b.vx*dt
                 b.y += b.vy*dt
                 b.age += dt
@@ -293,6 +297,26 @@ class Engine:
         self.enemies.append(Entity(next(self.ids), kind, x, y, radius, vx, vy, hp,
                                    fire_in=fire_in, ttl=60 if kind == "boss" else 25,
                                    spin=self.rng.choice((-1, 1)) if kind == "sprayer" else 1))
+
+    def fire_player(self):
+        self.volley += 1
+        shots = [(dx, math.radians(deg), "player_bullet", 700) for dx, deg in WEAPON_PATTERNS[self.session.weapon]]
+        if self.session.weapon >= 4 and self.volley % 2:
+            shots += [(-24, math.radians(-35), "player_homing", 520), (24, math.radians(35), "player_homing", 520)]
+        for dx, tilt, kind, speed in shots:
+            if len(self.player_bullets) < MAX_PLAYER_BULLETS:
+                self.player_bullets.append(Entity(next(self.ids), kind, self.player.x+dx, self.player.y+32, 5,
+                                                  math.sin(tilt)*speed, math.cos(tilt)*speed,
+                                                  damage=self.session.damage, ttl=3))
+
+    def steer(self, b, dt):
+        target = min(self.enemies, key=lambda e: (e.x-b.x)**2 + (e.y-b.y)**2, default=None)
+        if target is None:
+            return
+        heading, speed = math.atan2(b.vy, b.vx), math.hypot(b.vx, b.vy)
+        turn = (math.atan2(target.y-b.y, target.x-b.x) - heading + math.pi) % math.tau - math.pi
+        heading += max(-HOMING_TURN*dt, min(HOMING_TURN*dt, turn))
+        b.vx, b.vy = math.cos(heading)*speed, math.sin(heading)*speed
 
     def watch(self, e, dt):
         e.aim = -math.pi/2 + SIGHT_SWING*math.sin(math.tau*e.age/SIGHT_PERIOD)
