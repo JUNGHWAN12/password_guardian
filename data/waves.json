@@ -7,6 +7,9 @@
   {"stage":1,"start":0,"end":26,"interval":3.5,"kinds":["bot","drone"],"count":1},
   {"stage":1,"start":10,"end":35,"interval":24,"kinds":["phish"],"count":1},
   {"stage":1,"start":26,"end":52,"interval":4,"kinds":["drone"],"count":1},
-  {"stage":1,"start":26,"end":52,"interval":8,"kinds":["swarm"],"count":3},
-  {"stage":2,"start":26,"end":27,"interval":60,"kinds":["mfa"],"count":1}
+  {"stage":1,"start":18,"end":19,"interval":60,"kinds":["gift"],"count":1},
+  {"stage":1,"start":26,"end":52,"interval":10,"kinds":["swarm"],"count":3},
+  {"stage":1,"start":44,"end":45,"interval":60,"kinds":["surfer"],"count":1},
+  {"stage":2,"start":26,"end":27,"interval":60,"kinds":["mfa"],"count":1},
+  {"stage":2,"start":40,"end":41,"interval":60,"kinds":["surfer"],"count":1}
 ]

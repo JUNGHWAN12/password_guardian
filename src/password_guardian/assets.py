@@ -113,19 +113,30 @@ def _keycap():
     return im
 
 
+def _diamond():
+    im, d = _canvas(22, 26)
+    s = SS
+    d.polygon([(11 * s, 1 * s), (21 * s, 13 * s), (11 * s, 25 * s), (1 * s, 13 * s)], fill=(255, 214, 60),
+              outline=(255, 255, 255, 170), width=2 * s)
+    d.ellipse((7 * s, 10 * s, 15 * s, 16 * s), fill=INK)  # a peeking eye
+    d.ellipse((10 * s, 11 * s, 13 * s, 14 * s), fill=(255, 245, 200))
+    return im
+
+
 def bullet_textures():
     # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
-    # bell (approval prompts) and keycap (keylogger) for the newer attacks.
+    # bell (approval prompts), keycap (keylogger) and an eye diamond (shoulder surfer) for the newer attacks.
     return {"player_bullet": _texture(_padlock(), "padlock"), "guess": _texture(_bubble("?", ORANGE), "guess"),
             "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
-            "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap")}
+            "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap"),
+            "peek": _texture(_diamond(), "peek")}
 
 
 def load_textures():
     names = {"player": "player.png", "bot": "guess_bot.png", "drone": "dictionary_drone.png",
              "swarm": "leaked_swarm.png", "boss": "intruder.png", "phish": "phishing_lure.png",
              "phish_disguise": "phishing_lure_disguise.png", "keylogger": "keylogger.png", "mfa": "mfa_bomber.png",
-             "sprayer": "password_sprayer.png"}
+             "sprayer": "password_sprayer.png", "surfer": "shoulder_surfer.png", "gift": "trojan_gift.png"}
     names.update({bg: f"{bg}.jpg" for bg in ("bg_title", "bg_stage_1", "bg_stage_2", "bg_stage_3", "bg_result")})
     textures = {}
     for key, name in names.items():

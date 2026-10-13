@@ -1,7 +1,7 @@
 import json
 from .config import ROOT
 
-KINDS = {"bot", "drone", "swarm", "phish", "keylogger", "mfa", "sprayer"}
+KINDS = {"bot", "drone", "swarm", "phish", "keylogger", "mfa", "sprayer", "surfer", "gift"}
 
 
 def load_content():

@@ -14,10 +14,14 @@ from .session import Session
 # kind: (hp, hit radius, entry speed, seconds between attacks)
 ENEMY_STATS = {"bot": (3, 25, -42, 1.5), "drone": (5, 31, -32, 2.0), "swarm": (2, 21, -85, 1.8),
                "boss": (100, 95, 0, 1.8), "phish": (3, 22, -40, 1.6), "keylogger": (3, 24, -35, 1.4),
-               "mfa": (5, 30, -60, 3.0), "sprayer": (6, 28, -60, 4.0)}
-HOLD = {"mfa": (760, 14), "sprayer": (870, 16)}  # stop at this height, leave upward after these seconds
+               "mfa": (5, 30, -60, 3.0), "sprayer": (6, 28, -60, 4.0),
+               "surfer": (4, 30, -60, math.inf), "gift": (6, 30, -35, math.inf)}
+HOLD = {"mfa": (760, 14), "sprayer": (870, 16), "surfer": (820, 16)}  # stop at this height, leave upward after these seconds
 PHISH_REVEAL = 1.2  # seconds a phishing lure looks like a guardian before its mask drops
 KEYLOGGER_DELAY = 1.2  # a keylogger shoots where the player was this long ago
+SIGHT_HALF, SIGHT_SWING, SIGHT_PERIOD = math.radians(15), math.radians(40), 4.0  # shoulder surfer's view cone
+SIGHT_STARE, SIGHT_BLINK = 0.8, 0.3  # seconds in view before the lens blinks, then the shot
+GIFT_OPEN_Y, GIFT_OPEN_AGE = 560, 6.0  # a trojan gift opens at this height or age unless destroyed first
 
 
 @dataclass
@@ -38,6 +42,8 @@ class Entity:
     burst_in: float = 0
     aim: float = 0
     spin: int = 1
+    watch: float = 0  # seconds the player has stayed in a shoulder surfer's view
+    warn: float = 0  # lens blink before its shot
 
 
 def overlaps(a, b):
@@ -224,6 +230,9 @@ class Engine:
             else:
                 e.x += e.vx*dt
                 e.y += e.vy*dt
+            if e.kind == "gift" and (e.y <= GIFT_OPEN_Y or e.age >= GIFT_OPEN_AGE):
+                self.open_gift(e)
+                continue
             leaving = False
             if e.kind in HOLD:
                 hold_y, stay = HOLD[e.kind]
@@ -232,6 +241,8 @@ class Engine:
                 if e.age > stay:
                     e.vy, e.burst = 90, 0  # done; withdraw upward without firing
                 leaving = e.vy > 0
+            if e.kind == "surfer" and e.vy == 0:
+                self.watch(e, dt)
             if not leaving:
                 e.fire_in -= dt
                 if e.fire_in <= 0:
@@ -272,11 +283,35 @@ class Engine:
         elif kind in HOLD:
             x, y = self.rng.uniform(left+150, right-150), top+60  # glide in from above, then hold
             fire_in = (y - HOLD[kind][0]) / -vy + 0.3
+        if ENEMY_STATS[kind][3] == math.inf:
+            fire_in = math.inf  # attacks on its own terms (view cone, opening), never on a timer
         if math.hypot(x-self.player.x, y-self.player.y) < 150:
             x = right-100 if self.player.x < 780 else left+100
         self.enemies.append(Entity(next(self.ids), kind, x, y, radius, vx, vy, hp,
                                    fire_in=fire_in, ttl=60 if kind == "boss" else 25,
                                    spin=self.rng.choice((-1, 1)) if kind == "sprayer" else 1))
+
+    def watch(self, e, dt):
+        e.aim = -math.pi/2 + SIGHT_SWING*math.sin(math.tau*e.age/SIGHT_PERIOD)
+        if e.warn > 0:
+            e.warn -= dt
+            if e.warn <= 0:
+                self.shoot(e, "peek", math.atan2(self.player.y-e.y, self.player.x-e.x), 260)
+            return
+        to_player = math.atan2(self.player.y-e.y, self.player.x-e.x)
+        seen = abs((to_player - e.aim + math.pi) % math.tau - math.pi) <= SIGHT_HALF
+        e.watch = e.watch + dt if seen else 0
+        if e.watch >= SIGHT_STARE:
+            e.watch, e.warn = 0, SIGHT_BLINK
+
+    def open_gift(self, e):
+        self.enemies.remove(e)
+        hp, radius, vy, _ = ENEMY_STATS["swarm"]
+        for vx in (-70, 0, 70):
+            if len(self.enemies) < MAX_ENEMIES:
+                self.enemies.append(Entity(next(self.ids), "swarm", e.x + vx/2, e.y, radius, vx, vy, hp, ttl=25))
+        for k in range(8):
+            self.shoot(e, "leak", math.tau*k/8 + math.pi/8, 160)
 
     def fire_enemy(self, e):
         angle = math.atan2(self.player.y-e.y, self.player.x-e.x)

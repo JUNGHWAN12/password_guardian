@@ -93,6 +93,22 @@
     "sha256": "7c3243339bc8e413520dd9b74680afad833d910a4854b54f61fe93b217a91815"
   },
   {
+    "file": "assets/images/shoulder_surfer.png",
+    "original": "assets/generated/shoulder_surfer.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 168x168",
+    "sha256": "b0fe36a7880f5d27c832d8d2c775807bf7a99ad13888a9eb06e7b275d6aeebee"
+  },
+  {
+    "file": "assets/images/trojan_gift.png",
+    "original": "assets/generated/trojan_gift.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 160x159",
+    "sha256": "73dd1e5708d8fb97d561ce06a8dce070322c7fa3b300e6631f2d3eefaa67be29"
+  },
+  {
     "file": "assets/images/bg_title.jpg",
     "original": "assets/generated/bg_title.jpg",
     "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",

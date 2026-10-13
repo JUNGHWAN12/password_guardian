@@ -5,7 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from password_guardian.config import FIELD, PLAYER_START
+from password_guardian.config import FIELD, PLAYER_START, STEP
 from password_guardian.engine import Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, overlaps
 from password_guardian.session import Session, grade_for
 
@@ -262,12 +262,46 @@ class AttackTests(unittest.TestCase):
 
     def test_new_attacks_join_each_stage_once(self):
         engine = Engine()
-        for stage, expected in ((0, {"sprayer": 1, "keylogger": 1}), (1, {"phish": 2}), (2, {"mfa": 1})):
+        for stage, expected in ((0, {"sprayer": 1, "keylogger": 1}), (1, {"phish": 2, "gift": 1, "surfer": 1}),
+                                (2, {"mfa": 1, "surfer": 1})):
             engine.stage = stage
             engine.enter("COMBAT")
             counts = Counter(kind for _, kind, _ in engine.events)
             self.assertEqual({k: counts[k] for k in expected}, expected)
             self.assertTrue(all(kind in engine.intros or kind in ("bot", "drone", "swarm") for kind in counts))
+
+    def test_shoulder_surfer_shoots_only_after_a_long_look(self):
+        engine = self.combat()
+        engine.spawn_enemy("surfer")
+        surfer = engine.enemies[0]
+        surfer.x, surfer.y, surfer.vy, surfer.age = 300, 820, 0, 0
+        engine.player.x = 1400  # 61 degrees off straight down: beyond the 40 degree sweep plus the 15 degree half width
+        engine.update(3.0)
+        self.assertEqual(engine.enemy_bullets, [])
+        surfer.age, surfer.ttl = 0, 1e9
+        engine.player.x, engine.player.y = 780, 220
+        for _ in range(240):  # keep the player under the lens whatever the sweep does
+            engine.player.x = surfer.x + math.cos(surfer.aim)*600
+            engine.player.y = max(140, surfer.y + math.sin(surfer.aim)*600)
+            engine.update(STEP)
+        self.assertEqual([b.kind for b in engine.enemy_bullets], ["peek"])
+        self.assertAlmostEqual(math.hypot(engine.enemy_bullets[0].vx, engine.enemy_bullets[0].vy), 260)
+
+    def test_trojan_gift_opens_unless_destroyed_first(self):
+        engine = self.combat()
+        engine.spawn_enemy("gift")
+        gift = engine.enemies[0]
+        engine.update(5.9)
+        self.assertEqual((engine.enemies, engine.enemy_bullets), ([gift], []))
+        engine.update(0.2)
+        self.assertEqual(sorted(e.kind for e in engine.enemies), ["swarm"] * 3)
+        self.assertEqual([b.kind for b in engine.enemy_bullets], ["leak"] * 8)
+
+        engine = self.combat()
+        engine.spawn_enemy("gift")
+        engine.defeat(engine.enemies[0])
+        engine.update(7)
+        self.assertEqual((engine.enemies, engine.enemy_bullets, engine.session.score), ([], [], 50))
 
     def test_alert_bombers_reinforce_after_the_boss(self):
         engine = self.combat()

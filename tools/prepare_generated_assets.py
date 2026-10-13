@@ -21,7 +21,8 @@ SHIPS = {"player": ("player.jpg", 152), "guess_bot": ("guess_bot.jpg", 60),
          "dictionary_drone": ("dictionary_drone.jpg", 220), "leaked_swarm": ("leaked_swarm.jpg", 128),
          "intruder": ("intruder.jpg", 400), "keylogger": ("keylogger.webp", 144),
          "phishing_lure_disguise": ("phishing_lure_disguise.webp", 140), "phishing_lure": ("phishing_lure.webp", 140),
-         "mfa_bomber": ("mfa_bomber.webp", 168), "password_sprayer": ("password_sprayer.webp", 156)}
+         "mfa_bomber": ("mfa_bomber.webp", 168), "password_sprayer": ("password_sprayer.webp", 156),
+         "shoulder_surfer": ("shoulder_surfer.webp", 168), "trojan_gift": ("trojan_gift.webp", 160)}
 SAME_FRAME = [("phishing_lure_disguise", "phishing_lure")]  # one crop box, so the reveal swaps in place
 THIN_PARTS = {"phishing_lure_disguise"}  # keep the thin fishing line: no speck or fringe erosion
 FLAME_FROM = {"player": 862}  # rows below the nozzles hold engine flames drawn over the checkerboard

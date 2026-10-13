@@ -7,7 +7,7 @@ from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
-from .engine import Engine, PHISH_REVEAL
+from .engine import Engine, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .rankings import Board, RankingWorker, participant_code
 
 INK = (7, 14, 24)
@@ -20,6 +20,7 @@ GOLD = (255, 195, 104)
 RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
 PINK = (255, 92, 170)
+YELLOW = (255, 214, 60)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
@@ -193,7 +194,7 @@ class GuardianWindow(arcade.Window):
         e = self.engine
         groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
         widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200, "phish": 70,
-                  "keylogger": 72, "mfa": 84, "sprayer": 78}  # bullets: drawn at size
+                  "keylogger": 72, "mfa": 84, "sprayer": 78, "surfer": 84, "gift": 80}  # bullets: drawn at size
         for group, entities in groups.items():
             mapping = self.sprite_maps[group]
             live = {entity.id for entity in entities}
@@ -322,6 +323,17 @@ class GuardianWindow(arcade.Window):
         self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 등록", x+30, y+81, 15, MUTED)
         self.txt("board-total", f"총 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
 
+    def sight(self, enemy):
+        reach, steps = 900, 8
+        points = [(enemy.x, enemy.y)]
+        for k in range(steps+1):
+            a = enemy.aim - SIGHT_HALF + 2*SIGHT_HALF*k/steps
+            points.append((enemy.x + math.cos(a)*reach, enemy.y + math.sin(a)*reach))
+        heat = min(1, enemy.watch/SIGHT_STARE)
+        arcade.draw_polygon_filled(points, (*YELLOW, int(22 + 40*heat)))
+        for edge in (points[1], points[-1]):
+            arcade.draw_line(enemy.x, enemy.y, *edge, (*YELLOW, int(70 + 90*heat)), 2)
+
     def draw_game(self):
         e, s = self.engine, self.engine.session
         self.panel(65, 947, 1790, 89)
@@ -336,6 +348,9 @@ class GuardianWindow(arcade.Window):
         previous_scissor = self.ctx.scissor
         self.ctx.scissor = (round(viewport.left+65*scale), round(viewport.bottom+110*scale),
                             round(1430*scale), round(815*scale))
+        for enemy in e.enemies:  # view cones go under everything, faint enough not to hide bullets
+            if enemy.kind == "surfer" and enemy.vy == 0:
+                self.sight(enemy)
         for group in ("enemies", "shots", "threats", "player"):
             self.sprite_lists[group].draw()
         if s.shield or e.invulnerable:
@@ -352,6 +367,13 @@ class GuardianWindow(arcade.Window):
             if enemy.kind == "phish" and PHISH_REVEAL <= enemy.age < PHISH_REVEAL+0.3:
                 arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+24, PINK, 3)
                 self.txt(f"fake-{enemy.id}", "가짜!", enemy.x, enemy.y+enemy.radius+62, 22, PINK, bold=True, anchor="center")
+            if enemy.kind == "surfer" and enemy.warn > 0:  # lens blink before the shot
+                arcade.draw_circle_filled(enemy.x, enemy.y, 16, (*YELLOW, 230))
+                arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+14, YELLOW, 3)
+            if enemy.kind == "gift":
+                opens_in = min((enemy.y-GIFT_OPEN_Y)/-enemy.vy if enemy.vy else 0, GIFT_OPEN_AGE-enemy.age)
+                if opens_in < 1.5 and int(opens_in*6) % 2 == 0:  # about to burst open
+                    arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+16, RED, 3)
             if enemy.kind == "boss":
                 self.panel(505, 865, 550, 31, fill=(35, 18, 31, 240), edge=(90, 48, 60))
                 arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/100, 19, RED)
