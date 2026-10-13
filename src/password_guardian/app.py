@@ -21,6 +21,7 @@ RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
+SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
 
 
 class GuardianWindow(arcade.Window):
@@ -229,19 +230,13 @@ class GuardianWindow(arcade.Window):
         arcade.draw_texture_rect(texture, LBWH(x-w/2, y-h/2, w, h), alpha=alpha)
 
     def background(self):
-        self.image("vault", 960, 540, 1920, 1080)
         state = self.engine.state
+        key = {"TITLE": "bg_title", "RESULT": "bg_result", "TUTORIAL": "bg_stage_1"}.get(state, f"bg_stage_{self.engine.stage+1}")
+        self.image(key, 960, 540, 1920, 1080)
         if state in ("TITLE", "RESULT"):
-            arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (5, 13, 23, 110))
+            arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (5, 13, 23, SCREEN_SHADE))
         else:
-            self.panel(65, 110, 1430, 815, fill=(7, 17, 28, 160), edge=(26, 60, 75))
-            cx, cy = 780, 515
-            color = [(23, 63, 73), (51, 35, 69), (64, 35, 45)][self.engine.stage]
-            for radius in (150, 195, 280):
-                arcade.draw_circle_outline(cx, cy, radius, color, 2)
-            for x in (120, 1435):
-                for y in range(180, 900, 95):
-                    arcade.draw_lbwh_rectangle_filled(x, y, 5, 40, color)
+            self.panel(65, 110, 1430, 815, fill=(7, 17, 28, FIELD_SHADE), edge=(26, 60, 75))
 
     def on_draw(self):
         self.clear(INK)
@@ -274,9 +269,7 @@ class GuardianWindow(arcade.Window):
         self.txt("eyebrow", "DIGITAL SECURITY / INTERACTIVE MISSION", 100, 983, 18, CYAN)
         self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True, leading=1.1)
         self.txt("subtitle", "계정을 노리는 공격으로부터\n디지털 금고를 지켜라!", 102, 654, 30, MUTED, width=800)
-        self.image("player", 895, 649 + math.sin(self.clock*1.5)*8, 190)
-        arcade.draw_circle_outline(895, 652, 188, (40, 115, 134), 2)
-        arcade.draw_circle_outline(895, 652, 213, (25, 55, 72), 1)
+        self.image("player", 1010, 625 + math.sin(self.clock*1.5)*8, 190)  # in front of the vault door
         self.panel(100, 358, 1010, 125)
         self.txt("start-key", "ENTER", 140, 445, 33, CYAN, bold=True)
         self.txt("start-label", "보안 수호 임무 시작", 330, 447, 29, bold=True)
@@ -410,19 +403,20 @@ class GuardianWindow(arcade.Window):
         self.txt("result-score", f"{result.score:,}", 120, 746, 83, WHITE, bold=True)
         self.txt("result-grade", result.grade, 1055, 768, 89, CYAN, bold=True, anchor="right")
         self.txt("result-grade-caption", "게임 성과 등급", 1063, 628, 18, MUTED, anchor="right")
+        self.panel(90, 248, 1045, 328, fill=(13, 27, 42, 215))  # keeps the lines readable over the hologram
         summary = f"일반 적 {result.enemy_kills}기 처치   ·   부활 {result.revive_count}회   ·   보스 {'처치' if result.boss_defeated else '시간 방어 완료'}"
-        self.txt("result-stats", summary, 93, 558, 23, WHITE)
+        self.txt("result-stats", summary, 125, 558, 23, WHITE)
         own = self.board.own
         if result.eligible and own and own["session_id"] == result.session_id:
             rank_message = f"{participant_code(own['id'])}   /   이번 기록 {own['rank']}위 · 총 {self.board.total}개"
         else:
             rank_message = self.rank_status
-        self.txt("result-rank", rank_message, 93, 508, 23, CYAN)
+        self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
         for i, record in enumerate(result.choices):
             y = 432-i*62
             label = "정답" if record.correct else "미선택" if record.selection is None else "다시 기억해요"
-            self.txt(f"result-choice-num{i}", f"0{i+1}", 95, y, 23, CYAN)
-            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 161, y, 24, WHITE)
+            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 23, CYAN)
+            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
             self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
         self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
         self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 시작 화면으로 돌아갑니다", 94, 114, 24, CYAN)

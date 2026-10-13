@@ -96,7 +96,7 @@ perspective, three-quarter view, side view, isometric, tilted, cropped, cut off,
 
 ## 5. 후처리와 게임 적용
 
-원본을 `assets/generated/<파일 이름>.jpg`로 두고 `python tools/prepare_generated_ships.py`를 실행하면 아래 1~4단계를 자동으로 처리한다. 생성 도구가 가짜 투명 체크무늬나 ‘AI’ 표시를 그려 넣은 이미지도 처리한다. 표시 크기는 2026-10-13 생성 이미지의 비율에 맞춰 위 표처럼 다시 정했다.
+원본을 `assets/generated/<파일 이름>.jpg`로 두고 `python tools/prepare_generated_assets.py`를 실행하면 아래 1~4단계를 자동으로 처리한다. 생성 도구가 가짜 투명 체크무늬나 ‘AI’ 표시를 그려 넣은 이미지도 처리한다. 표시 크기는 2026-10-13 생성 이미지의 비율에 맞춰 위 표처럼 다시 정했다.
 
 1. 배경을 지운다(투명 배경으로 출력했다면 생략). 가장자리에 남은 초록·흰색 테두리가 없는지 확대해 확인한다.
 2. **기체 경계에 맞춰 잘라낸다(여백 0~2px).** 게임은 이미지의 폭을 위 표의 표시 폭에 맞춰 줄이므로, 여백이 있으면 화면에서 기체가 그만큼 작아진다. 현재 임시 이미지도 모두 여백 없이 잘려 있다.
@@ -143,7 +143,7 @@ Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vaul
 
 ### 7.4 배경별 프롬프트
 
-#### 시작 화면 (`bg_title.png`)
+#### 시작 화면 (`bg_title.jpg`)
 
 거대한 금고 문과 입구 통로. 앞에서 바라본 원근 구도를 쓴다. 금고 문은 주인공 기체 뒤(가로 약 47%)에 오고, 제목이 놓이는 왼쪽과 랭킹 패널이 놓이는 오른쪽은 단순하게 둔다.
 
@@ -151,7 +151,7 @@ Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vaul
 Title screen background: the grand entrance of a giant digital vault, seen from the front with a sense of depth. A massive round vault door with a padlock-shaped emblem at its center, placed just left of the image center and slightly above the middle. A wide corridor leads to the door, with rows of teal cyan lights along both side walls. The left third of the image stays dark and simple, and the right third stays dark and calm. Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vault" interior: dark gunmetal metal surfaces, crisp panel seams, subtle circuit lines, restrained teal cyan accent lighting. Medium-dark overall brightness with low saturation, so that small bright bullets and spaceships stand out on top of it. Low-contrast detail spread evenly, with no tiny bright dots, no sparkles, no particles, no stars, no lens flare. Polished semi-realistic painted game art. No spaceships, no characters, no people, no text, no letters, no numbers, no logo, no user interface, no watermark, no frame.
 ```
 
-#### 1단계 ‘기본 방어’ (`bg_stage_1.png`)
+#### 1단계 ‘기본 방어’ (`bg_stage_1.jpg`)
 
 금고 외곽 복도의 바닥을 위에서 내려다본다. 기체가 움직이는 중앙은 넓고 단순하게 둔다.
 
@@ -159,7 +159,7 @@ Title screen background: the grand entrance of a giant digital vault, seen from 
 Gameplay background for stage 1, "outer defense": seen strictly from directly above, a flat top-down view of the floor of the vault's outer corridor. Dark metal floor plates with a simple, regular circuit grid in dim teal, and a few structural beams near the left and right edges. The large central area is open, flat and calm with very little detail. No perspective, no vanishing point, no walls seen from the side. Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vault" interior: dark gunmetal metal surfaces, crisp panel seams, subtle circuit lines, restrained teal cyan accent lighting. Medium-dark overall brightness with low saturation, so that small bright bullets and spaceships stand out on top of it. Low-contrast detail spread evenly, with no tiny bright dots, no sparkles, no particles, no stars, no lens flare. Polished semi-realistic painted game art. No spaceships, no characters, no people, no text, no letters, no numbers, no logo, no user interface, no watermark, no frame.
 ```
 
-#### 2단계 ‘복합 공격’ (`bg_stage_2.png`)
+#### 2단계 ‘복합 공격’ (`bg_stage_2.jpg`)
 
 교차하는 데이터 통로와 연결망. 붉은 경고등은 화면 맨 왼쪽·오른쪽 가장자리에만 두고, 붉은 열쇠 탄환과 헷갈리지 않도록 점이 아닌 긴 줄무늬로 표현한다.
 
@@ -167,7 +167,7 @@ Gameplay background for stage 1, "outer defense": seen strictly from directly ab
 Gameplay background for stage 2, "combined attack": seen strictly from directly above, a flat top-down view of the vault's data network level. Crossing data channels and network connection lines in dim teal run across a dark metal floor. Dim red warning lights appear only at the far left and far right edges of the image, shaped as long thin stripes, never as dots, and never near the center. The central area stays calm. No perspective, no vanishing point. Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vault" interior: dark gunmetal metal surfaces, crisp panel seams, subtle circuit lines, restrained teal cyan accent lighting. Medium-dark overall brightness with low saturation, so that small bright bullets and spaceships stand out on top of it. Low-contrast detail spread evenly, with no tiny bright dots, no sparkles, no particles, no stars, no lens flare. Polished semi-realistic painted game art. No spaceships, no characters, no people, no text, no letters, no numbers, no logo, no user interface, no watermark, no frame.
 ```
 
-#### 3단계 ‘최종 방어’ (`bg_stage_3.png`)
+#### 3단계 ‘최종 방어’ (`bg_stage_3.jpg`)
 
 금고 중심부의 원형 코어와 동심원 기계 구조. 코어는 전투 영역 중심(가로 41%, 세로 52%)에 두고, 보스와 탄막이 잘 보이도록 어둡게 처리한다.
 
@@ -175,7 +175,7 @@ Gameplay background for stage 2, "combined attack": seen strictly from directly 
 Gameplay background for stage 3, "final defense": seen strictly from directly above, a top-down view into the heart of the vault. A large circular core surrounded by concentric rings of machinery, centered a little left of the image center. The core is dark and dormant, with only a faint deep red glow along its outer rim. Heavy dark armor plating surrounds it. Dramatic but dark, leaving clear space for a large boss ship and many bullets. No perspective, no vanishing point. Background art for a 2D shoot 'em up game, 16:9 widescreen. Sci-fi "digital vault" interior: dark gunmetal metal surfaces, crisp panel seams, subtle circuit lines, restrained teal cyan accent lighting. Medium-dark overall brightness with low saturation, so that small bright bullets and spaceships stand out on top of it. Low-contrast detail spread evenly, with no tiny bright dots, no sparkles, no particles, no stars, no lens flare. Polished semi-realistic painted game art. No spaceships, no characters, no people, no text, no letters, no numbers, no logo, no user interface, no watermark, no frame.
 ```
 
-#### 결과 화면 (`bg_result.png`)
+#### 결과 화면 (`bg_result.jpg`)
 
 공격을 막아 낸 뒤의 안정된 금고 내부. 결과 화면은 글자가 가장 많으므로 장식은 아래쪽과 가장자리에만 두고, 왼쪽과 가운데는 어둡고 고르게 둔다.
 
@@ -204,7 +204,7 @@ perspective, vanishing point, side view, isometric
 
 1. 도구의 업스케일 기능이나 별도 업스케일러로 가로 1920px 이상으로 키운 뒤 정확히 1920×1080으로 자른다. 3단계는 코어가 가로 41%, 세로 52% 근처에 오도록 자르는 위치를 맞춘다.
 2. 너무 밝거나 채도가 높으면 밝기·채도를 낮춘다. 반짝이는 점은 지운다.
-3. 투명도 없는 RGB PNG로 `assets/images/`에 `bg_title.png`, `bg_stage_1.png`, `bg_stage_2.png`, `bg_stage_3.png`, `bg_result.png`로 저장한다.
-4. **배경은 코드 연결이 필요하다.** 지금은 모든 화면이 `vault.png` 한 장에 단계별 색 원을 코드로 덧그린다. 배경 5장이 준비되면 화면별로 불러오고 코드로 그리던 원·눈금을 정리하는 작업(추후 구현계획서 F-4)을 진행한다.
+3. 원본을 `assets/generated/bg_title.jpg`처럼 같은 이름으로 두고 `python tools/prepare_generated_assets.py`를 실행하면, 오른쪽 아래 ‘AI’ 표시가 있는 모서리를 뺀 왼쪽 위 95%를 1920×1080 JPEG(품질 95)로 `assets/images/`에 저장한다. 원본이 손실 압축이라 PNG로 저장해도 화질 이득 없이 용량만 세 배가 된다.
+4. 화면별 연결은 끝났다(2026-10-13). 시작·결과 화면은 각자의 배경, 연습은 1단계 배경, 각 단계의 선택·전투는 그 단계 배경을 쓴다. 배경 위 어두운 막은 `app.py`의 `SCREEN_SHADE`(시작·결과, 60)와 `FIELD_SHADE`(전투 영역, 90)로 조절한다.
 5. 출처는 §6과 같이 `sources.json`, `LICENSES.md`, `ASSET_MANIFEST.md`에 기록한다.
 

@@ -87,13 +87,14 @@ def bullet_textures():
 
 
 def load_textures():
-    names = {"player": "player", "bot": "guess_bot", "drone": "dictionary_drone",
-             "swarm": "leaked_swarm", "boss": "intruder", "vault": "vault"}
+    names = {"player": "player.png", "bot": "guess_bot.png", "drone": "dictionary_drone.png",
+             "swarm": "leaked_swarm.png", "boss": "intruder.png"}
+    names.update({bg: f"{bg}.jpg" for bg in ("bg_title", "bg_stage_1", "bg_stage_2", "bg_stage_3", "bg_result")})
     textures = {}
     for key, name in names.items():
-        path = ROOT / "assets/images" / f"{name}.png"
+        path = ROOT / "assets/images" / name
         if not path.exists():
-            raise FileNotFoundError(f"에셋이 없습니다: {path}. tools/prepare_generated_ships.py(기체)나 tools/prepare_prototype_assets.py(임시 배경)를 실행하세요.")
+            raise FileNotFoundError(f"에셋이 없습니다: {path}. python tools/prepare_generated_assets.py를 실행하세요.")
         textures[key] = arcade.load_texture(path)
     textures.update(bullet_textures())
     return textures

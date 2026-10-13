@@ -1,6 +1,6 @@
 """Prepare the remaining Kenney-based prototype assets; keep downloaded originals intact.
 
-Ships now come from tools/prepare_generated_ships.py, so they are not touched here.
+Ships and backgrounds now come from tools/prepare_generated_assets.py; the game no longer uses these files.
 """
 from pathlib import Path
 import hashlib

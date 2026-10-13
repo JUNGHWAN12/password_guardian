@@ -1,8 +1,11 @@
-"""Turn the generative-AI ship images in assets/generated/ into game sprites.
+"""Turn the generative-AI images in assets/generated/ into game assets.
 
-The generator baked a fake transparency checkerboard and an "AI" mark into
-opaque JPGs. This removes both, keys the player's engine flames by their cyan
-strength, trims each ship to its outline and resizes it for the game.
+Ships: the generator baked a fake transparency checkerboard and an "AI" mark
+into opaque JPGs. This removes both, keys the player's engine flames by their
+cyan strength, trims each ship to its outline and resizes it for the game.
+
+Backgrounds: drops the bottom-right corner that holds the "AI" mark and
+resizes to 1920x1080.
 """
 from pathlib import Path
 import hashlib
@@ -17,6 +20,10 @@ TARGET = ROOT / "assets/images"
 SHIPS = {"player": 152, "guess_bot": 60, "dictionary_drone": 220, "leaked_swarm": 128, "intruder": 400}
 FLAME_FROM = {"player": 862}  # rows below the nozzles hold engine flames drawn over the checkerboard
 BADGE = (925, 935, 1023, 1023)  # the generator's "AI" mark, bottom right
+BACKGROUNDS = {"bg_title": "bg_title.jpg", "bg_stage_1": "bg_stage_1.webp", "bg_stage_2": "bg_stage_2.webp",
+               "bg_stage_3": "bg_stage_3.webp", "bg_result": "bg_result.webp"}
+BG_SIZE = (1920, 1080)
+BG_KEEP = 0.95  # keep the top-left 95%; the "AI" mark sits in the last 4% at the bottom right
 BG_MIN, BG_CHROMA = 185, 24  # checkerboard squares are near-white and light grey
 CHECKER_GREY = 233  # mean of the white and grey squares
 CYAN_FULL = 120  # cyan strength of a fully opaque flame
@@ -122,7 +129,7 @@ def key_flames(im, alpha, top):
 def prepare():
     meta = json.loads((SOURCE / "source.json").read_text(encoding="utf-8"))
     records = [r for r in json.loads((TARGET / "sources.json").read_text(encoding="utf-8"))
-               if Path(r["file"]).stem not in SHIPS]
+               if Path(r["file"]).stem not in SHIPS and Path(r["file"]).stem not in BACKGROUNDS]
     for name, width in SHIPS.items():
         src = SOURCE / f"{name}.jpg"
         im = Image.open(src).convert("RGB")
@@ -143,6 +150,17 @@ def prepare():
                         "edit": f"checkerboard background and AI mark removed, trimmed, resized to {width}x{height}",
                         "sha256": hashlib.sha256(dest.read_bytes()).hexdigest()})
         print(f"{dest.relative_to(ROOT)}: {width}x{height}")
+    for name, file in BACKGROUNDS.items():
+        src = SOURCE / file
+        im = Image.open(src).convert("RGB")
+        keep = (0, 0, round(im.width * BG_KEEP), round(im.height * BG_KEEP))
+        dest = TARGET / f"{name}.jpg"  # the originals are lossy already; PNG would only triple the size
+        im.crop(keep).resize(BG_SIZE, Image.LANCZOS).save(dest, quality=95, subsampling=0)
+        records.append({"file": dest.relative_to(ROOT).as_posix(), "original": src.relative_to(ROOT).as_posix(),
+                        "tool": meta["tool"], "license": meta["license"],
+                        "edit": f"cropped to {keep[2]}x{keep[3]} from the top left to drop the AI mark, resized to 1920x1080",
+                        "sha256": hashlib.sha256(dest.read_bytes()).hexdigest()})
+        print(f"{dest.relative_to(ROOT)}: 1920x1080")
     (TARGET / "sources.json").write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

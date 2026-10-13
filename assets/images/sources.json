@@ -51,5 +51,45 @@
     "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
     "edit": "checkerboard background and AI mark removed, trimmed, resized to 400x482",
     "sha256": "dfc61bd1b4962066daf8f24acfa48be3ddb710772bf79b8654b36f982cbda1bc"
+  },
+  {
+    "file": "assets/images/bg_title.jpg",
+    "original": "assets/generated/bg_title.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "bea6718bdf1df65d738c109629d0d9bfd41cc31f9f1c4202fc232ad7fdc8883b"
+  },
+  {
+    "file": "assets/images/bg_stage_1.jpg",
+    "original": "assets/generated/bg_stage_1.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "1023958bcafb11d474d5ea75b3721eba0eb3feb10252ac5c801236c105f98e80"
+  },
+  {
+    "file": "assets/images/bg_stage_2.jpg",
+    "original": "assets/generated/bg_stage_2.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "75ff9c79d23c8abc295bbcad37e64181e4b42cc22219efef1d4e7fc04c7ba476"
+  },
+  {
+    "file": "assets/images/bg_stage_3.jpg",
+    "original": "assets/generated/bg_stage_3.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "fb386100461ba0d471fcf78135283b0323c5e0d62188f4be296d9d527ee141a3"
+  },
+  {
+    "file": "assets/images/bg_result.jpg",
+    "original": "assets/generated/bg_result.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "305cb565aba324173f7a6e3ce0051765a7ed767e1e5dd4b7440a1dba7866d5c5"
   }
 ]
