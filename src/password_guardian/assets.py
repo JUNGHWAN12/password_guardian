@@ -1,3 +1,4 @@
+import math
 from PIL import Image, ImageDraw, ImageFont
 import arcade
 from .config import ROOT
@@ -124,13 +125,61 @@ def _diamond():
     return im
 
 
+def _token(fill):
+    # Items are rounded tokens with a bright rim so they never read as enemy bullets.
+    im, d = _canvas(40, 40)
+    s = SS
+    d.rounded_rectangle((2 * s, 2 * s, 38 * s, 38 * s), radius=10 * s, fill=fill, outline=(255, 255, 255), width=3 * s)
+    return im, d, s
+
+
+def _patch():  # update arrow
+    im, d, s = _token(LIME)
+    d.polygon([(20 * s, 8 * s), (31 * s, 20 * s), (24 * s, 20 * s), (24 * s, 31 * s), (16 * s, 31 * s), (16 * s, 20 * s),
+               (9 * s, 20 * s)], fill=INK)
+    return im
+
+
+def _backup():  # floppy disk
+    im, d, s = _token(CYAN)
+    d.rounded_rectangle((10 * s, 9 * s, 30 * s, 31 * s), radius=2 * s, fill=INK)
+    d.rectangle((14 * s, 9 * s, 26 * s, 16 * s), fill=(225, 255, 255))
+    d.rectangle((13 * s, 21 * s, 27 * s, 31 * s), fill=(225, 255, 255))
+    return im
+
+
+def _vaccine():  # first-aid cross
+    im, d, s = _token((255, 255, 255))
+    d.rectangle((16 * s, 9 * s, 24 * s, 31 * s), fill=RED)
+    d.rectangle((9 * s, 16 * s, 31 * s, 24 * s), fill=RED)
+    return im
+
+
+def _badge():  # star
+    im, d, s = _token(GOLD)
+    star = [(20 + (11 if k % 2 == 0 else 5) * math.sin(math.pi * k / 5),
+             21 - (11 if k % 2 == 0 else 5) * math.cos(math.pi * k / 5)) for k in range(10)]
+    d.polygon([(x * s, y * s) for x, y in star], fill=INK)
+    return im
+
+
+def _firewall():  # brick wall
+    im, d, s = _token(ORANGE)
+    for row, y in enumerate((10, 17, 24)):
+        for x in ((9, 21) if row % 2 == 0 else (9, 15, 27)):
+            d.rectangle((x * s, y * s, (x + (10 if row % 2 == 0 else 5)) * s, (y + 5) * s), fill=INK)
+    return im
+
+
 def bullet_textures():
     # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
     # bell (approval prompts), keycap (keylogger) and an eye diamond (shoulder surfer) for the newer attacks.
     return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_bubble("?", ORANGE), "guess"),
             "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
             "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap"),
-            "peek": _texture(_diamond(), "peek")}
+            "peek": _texture(_diamond(), "peek"), "patch": _texture(_patch(), "patch"),
+            "backup": _texture(_backup(), "backup"), "vaccine": _texture(_vaccine(), "vaccine"),
+            "badge": _texture(_badge(), "badge"), "firewall": _texture(_firewall(), "firewall")}
 
 
 def load_textures():

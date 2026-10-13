@@ -7,7 +7,7 @@ from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
-from .engine import Engine, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
+from .engine import Engine, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .rankings import Board, RankingWorker, participant_code
 
 INK = (7, 14, 24)
@@ -56,7 +56,7 @@ class GuardianWindow(arcade.Window):
         self.worker = RankingWorker(Path(data_dir) / "rankings.sqlite3")
         self.jobs = []
         self.request_board()
-        self.sprite_maps = {name: {} for name in ("player", "enemies", "shots", "threats")}
+        self.sprite_maps = {name: {} for name in ("player", "enemies", "items", "shots", "threats")}
         self.sprite_lists = {name: arcade.SpriteList() for name in self.sprite_maps}
         self.closed_worker = False
         self.sync_sprites()
@@ -193,7 +193,8 @@ class GuardianWindow(arcade.Window):
 
     def sync_sprites(self):
         e = self.engine
-        groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
+        groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets,
+                  "items": e.items}
         widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200, "phish": 70,
                   "keylogger": 72, "mfa": 84, "sprayer": 78, "surfer": 84, "gift": 80}  # bullets: drawn at size
         for group, entities in groups.items():
@@ -352,7 +353,7 @@ class GuardianWindow(arcade.Window):
         for enemy in e.enemies:  # view cones go under everything, faint enough not to hide bullets
             if enemy.kind == "surfer" and enemy.vy == 0:
                 self.sight(enemy)
-        for group in ("enemies", "shots", "threats", "player"):
+        for group in ("enemies", "items", "shots", "threats", "player"):
             self.sprite_lists[group].draw()
         if e.precise:  # show the real hit point while moving precisely
             arcade.draw_circle_filled(e.player.x, e.player.y, e.player.radius+2, (*RED, 230))
@@ -384,6 +385,10 @@ class GuardianWindow(arcade.Window):
                 self.txt("boss-name", "침입자", 780, 937, 22, RED, anchor="center")
                 if enemy.age % 8 < 0.6:
                     self.txt("boss-warning", "공격 패턴 전환", 780, 845, 26, GOLD, anchor="center")
+        for i, (kind, x, y, left) in enumerate(e.notices[:4]):
+            self.txt(f"notice-{i}", ITEM_NOTICES[kind], x, y, 19, (*GOLD, int(255*min(1, left/0.4))), bold=True, anchor="center")
+        if e.firewall:
+            arcade.draw_lbwh_rectangle_outline(68, 113, 1424, 809, (255, 150, 60, 150), 3)
         if self.banner_left and e.state == "COMBAT":
             intro = e.intros[self.banner]
             self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))

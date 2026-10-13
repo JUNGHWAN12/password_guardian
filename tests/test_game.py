@@ -6,7 +6,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from password_guardian.config import FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS
-from password_guardian.engine import Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, overlaps
+from password_guardian.engine import (Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, DROP_CYCLE, FIREWALL_SECONDS,
+                                      SHIELD_MAX, overlaps)
 from password_guardian.session import Session, grade_for
 
 
@@ -355,6 +356,68 @@ class AttackTests(unittest.TestCase):
         engine.update(0.1)
         self.assertEqual([e.kind for e in engine.enemies], ["mfa"])
         self.assertAlmostEqual(engine.reinforcement_in, 8 - 0.05, places=1)
+
+
+class ItemTests(unittest.TestCase):
+    def combat(self):
+        engine = Engine(seed=8)
+        engine.state = "COMBAT"
+        engine.events = []
+        engine.shot_in = 1e9
+        return engine
+
+    def kill(self, engine, n):
+        for _ in range(n):
+            engine.spawn_enemy("bot")
+            enemy = engine.enemies[-1]
+            enemy.x, enemy.y = 780, 600
+            engine.defeat(enemy)
+
+    def test_every_third_defeat_drops_the_next_item_in_order(self):
+        engine = self.combat()
+        self.kill(engine, 9)
+        self.assertEqual([i.kind for i in engine.items], list(DROP_CYCLE[:3]))
+
+    def test_items_are_collected_and_apply_their_effect(self):
+        engine = self.combat()
+        s = engine.session
+        for kind in ("patch", "backup", "vaccine", "badge", "firewall"):
+            engine.drop(kind, engine.player.x, engine.player.y+10)
+        engine.update(STEP)
+        self.assertEqual((engine.items, s.weapon, s.shield, s.skills, s.score), ([], 2, 1, 4, 100))
+        self.assertEqual(engine.firewall, FIREWALL_SECONDS)
+        self.assertEqual([n[0] for n in engine.notices], ["patch", "backup", "vaccine", "badge", "firewall"])
+
+    def test_firewall_halves_enemy_bullet_speed(self):
+        engine = self.combat()
+        engine.enemy_bullets.append(Entity(50, "guess", 300, 800, 8, 0, -200, ttl=12))
+        engine.firewall = 5
+        engine.update(0.5)
+        self.assertAlmostEqual(engine.enemy_bullets[0].y, 800 - 50)
+
+    def test_items_fly_to_a_player_near_the_top(self):
+        engine = self.combat()
+        engine.drop("badge", 200, 500)
+        engine.player.y = 800  # above the auto-collect line
+        engine.update(1.0)
+        self.assertEqual((engine.items, engine.session.score), ([], 100))
+
+    def test_maxed_items_turn_into_points_and_boss_drops_three(self):
+        engine = self.combat()
+        engine.session.weapon, engine.session.shield = 4, SHIELD_MAX
+        engine.drop("patch", engine.player.x, engine.player.y)
+        engine.drop("backup", engine.player.x, engine.player.y)
+        engine.update(STEP)
+        self.assertEqual((engine.session.score, engine.session.weapon), (200, 4))
+        engine.spawn_enemy("boss")
+        engine.defeat(engine.enemies[-1])
+        self.assertEqual([i.kind for i in engine.items], ["patch", "backup", "vaccine"])
+
+    def test_stage_change_clears_items(self):
+        engine = self.combat()
+        engine.drop("badge", 300, 700)
+        engine.enter("CHOICE")
+        self.assertEqual((engine.items, engine.notices), ([], []))
 
 
 class ScoreTests(unittest.TestCase):

@@ -25,6 +25,15 @@ SIGHT_STARE, SIGHT_BLINK = 0.8, 0.3  # seconds in view before the lens blinks, t
 WEAPON_PATTERNS = {1: [(0, 0)], 2: [(-11, 0), (11, 0)], 3: [(-11, 0), (11, 0), (-18, -12), (18, 12)],
                    4: [(-16, 0), (0, 0), (16, 0), (-20, -12), (20, 12)]}
 HOMING_TURN = 5.0  # rad/s
+# Every DROP_EVERY-th defeat drops the next item of DROP_CYCLE, so drops never depend on luck.
+DROP_EVERY = 3
+DROP_CYCLE = ("patch", "badge", "backup", "patch", "badge", "vaccine", "badge", "firewall")
+BOSS_DROPS = ("patch", "backup", "vaccine")
+ITEM_FALL, ITEM_PULL, ITEM_PULL_LINE, ITEM_MAGNET = -110, 900, 720, 90  # px/s, px/s, auto-collect height, px
+FIREWALL_SECONDS, SHIELD_MAX = 5.0, 3
+# what each item says when picked up; the habit behind it is the point
+ITEM_NOTICES = {"patch": "패치 업데이트 · 무기 강화", "backup": "백업 완료 · 보호막 +1", "vaccine": "백신 실행 · 방어 스킬 +1",
+                "badge": "보안 배지 +100", "firewall": "방화벽 가동 · 적 탄 감속", "bonus": "이미 최대 · +100"}
 GIFT_OPEN_Y, GIFT_OPEN_AGE = 560, 6.0  # a trojan gift opens at this height or age unless destroyed first
 
 
@@ -72,6 +81,10 @@ class Engine:
         self.enemies = []
         self.player_bullets = []
         self.enemy_bullets = []
+        self.items = []
+        self.notices = []  # (text key, x, y, seconds left) for pickup captions
+        self.drops = 0
+        self.firewall = 0.0
         self.invulnerable = 0.0
         self.shot_in = 0.0
         self.skill_cooldown = 0.0
@@ -93,10 +106,17 @@ class Engine:
         self.reset_arena()
         self.enter("TUTORIAL")
 
-    def reset_arena(self):
+    def clear_field(self):
         self.enemies.clear()
         self.player_bullets.clear()
         self.enemy_bullets.clear()
+        self.items.clear()
+        self.notices.clear()
+        self.firewall = 0
+
+    def reset_arena(self):
+        self.clear_field()
+        self.drops = 0
         self.player.x, self.player.y = PLAYER_START
         self.invulnerable = 0
         self.shot_in = 0
@@ -110,9 +130,7 @@ class Engine:
         self.elapsed = 0.0
         self.revision += 1
         if state == "CHOICE":
-            self.enemies.clear()
-            self.player_bullets.clear()
-            self.enemy_bullets.clear()
+            self.clear_field()
             self.trail.clear()
             # The boss path overrides spawn relocation, so every stage starts from a safe spot.
             self.player.x, self.player.y = PLAYER_START
@@ -260,12 +278,15 @@ class Engine:
             if (e.y < bottom-60 or e.y > top+140 or e.x < left-100 or e.x > right+100
                     or e.age > e.ttl):
                 self.enemies.remove(e)
+        self.firewall = max(0, self.firewall-dt)
+        self.move_items(dt)
         for bullets in (self.player_bullets, self.enemy_bullets):
+            slow = 0.5 if bullets is self.enemy_bullets and self.firewall else 1
             for b in bullets[:]:
                 if b.kind == "player_homing":
                     self.steer(b, dt)
-                b.x += b.vx*dt
-                b.y += b.vy*dt
+                b.x += b.vx*dt*slow
+                b.y += b.vy*dt*slow
                 b.age += dt
                 if b.age > b.ttl or b.x < left-50 or b.x > right+50 or b.y < bottom-60 or b.y > top+100:
                     bullets.remove(b)
@@ -422,9 +443,59 @@ class Engine:
                 self.session.boss_defeated = True
                 self.session.add_score(500)
                 self.enemy_bullets.clear()
+                for i, kind in enumerate(BOSS_DROPS):
+                    self.drop(kind, enemy.x + (i-1)*60, enemy.y)
         else:
             self.session.enemy_kills += 1
             self.session.add_score(50)
+            if self.session.enemy_kills % DROP_EVERY == 0:
+                self.drop(DROP_CYCLE[self.drops % len(DROP_CYCLE)], enemy.x, enemy.y)
+                self.drops += 1
+
+    def drop(self, kind, x, y):
+        self.items.append(Entity(next(self.ids), kind, x, y, 22, vy=ITEM_FALL, ttl=12))
+
+    def move_items(self, dt):
+        for n in self.notices[:]:
+            n[3] -= dt
+            n[2] += 40*dt
+            if n[3] <= 0:
+                self.notices.remove(n)
+        bottom = FIELD[2]
+        pull = self.player.y >= ITEM_PULL_LINE
+        for item in self.items[:]:
+            item.age += dt
+            dx, dy = self.player.x-item.x, self.player.y-item.y
+            dist = math.hypot(dx, dy)
+            if pull or dist < ITEM_MAGNET:
+                step = min(dist, ITEM_PULL*dt)
+                if dist:
+                    item.x += dx/dist*step
+                    item.y += dy/dist*step
+            else:
+                item.y += item.vy*dt
+            if math.hypot(self.player.x-item.x, self.player.y-item.y) <= item.radius + 18:
+                self.items.remove(item)
+                self.collect(item)
+            elif item.y < bottom-40 or item.age > item.ttl:
+                self.items.remove(item)
+
+    def collect(self, item):
+        s, kind = self.session, item.kind
+        if kind == "patch" and not s.power_up():
+            kind = "bonus"
+        elif kind == "backup":
+            if s.shield < SHIELD_MAX:
+                s.shield += 1
+            else:
+                kind = "bonus"
+        elif kind == "vaccine":
+            s.skills += 1
+        elif kind == "firewall":
+            self.firewall = FIREWALL_SECONDS
+        if kind in ("badge", "bonus"):
+            s.add_score(100)
+        self.notices.append([kind, item.x, item.y + 30 + 30*len(self.notices), 1.2])  # stack, never overlap
 
     def hurt(self):
         if self.state not in ("COMBAT", "TUTORIAL") or self.invulnerable > 0:
