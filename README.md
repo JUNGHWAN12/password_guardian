@@ -39,7 +39,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe run_game.py
 ```
 
-첫 의존성 설치에는 인터넷이 필요합니다. 설치 후 플레이와 랭킹은 인터넷 없이 동작합니다. `run.ps1`과 `start_game.bat`는 `.venv`가 있으면 그 Python을 우선 사용합니다. 이미지·글꼴 경로는 실행 파일 위치를 기준으로 하므로 다른 폴더에서 실행해도 됩니다.
+첫 의존성 설치에는 인터넷이 필요합니다. 설치 후 플레이와 랭킹은 인터넷 없이 동작합니다. `start_game.bat`(`run.ps1`)는 `.venv`가 있으면 그 Python을 씁니다. 없으면 처음 실행할 때 `.venv`를 직접 만듭니다: uv가 있으면 `uv venv --python 3.13`(필요하면 Python 3.13을 내려받음), 없으면 PATH의 Python 3.11~3.13으로 만들고 `requirements.txt`를 설치합니다. Arcade 3.3.3이 쓰는 pymunk 6.9.0은 Python 3.14용 설치 파일이 없으므로 3.13 이하를 쓰세요. 이미지·글꼴 경로는 실행 파일 위치를 기준으로 하므로 다른 폴더에서 실행해도 됩니다.
 
 `src/`, `data/`, `assets/images/`, `assets/fonts/`, 실행 파일과 라이선스 문서를 함께 옮겨야 합니다. 한글은 함께 포함한 IBM Plex Sans KR 글꼴(SIL OFL 1.1)로 표시하므로 PC에 글꼴을 따로 설치하지 않아도 됩니다. EXE 패키징은 후속 작업입니다.
 
