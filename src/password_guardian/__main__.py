@@ -9,7 +9,8 @@ from .rankings import RankingRepository, default_data_dir
 
 def main():
     parser = argparse.ArgumentParser(description="패스워드 가디언 프로토타입")
-    parser.add_argument("--fullscreen", action="store_true", help="전체 화면으로 시작")
+    parser.add_argument("--windowed", action="store_true", help="창 모드로 시작(기본은 전체 화면)")
+    parser.add_argument("--fullscreen", action="store_true", help="전체 화면으로 시작(기본값, 예전 실행 옵션 호환용)")
     parser.add_argument("--practice", action="store_true", help="랭킹에 저장하지 않는 연습 모드")
     parser.add_argument("--booth", action="store_true",
                         help="부스 런처용: 한 판이 끝나면 종료, 시작 화면 Esc·언제든 Shift+Esc로 종료")
@@ -33,7 +34,7 @@ def main():
     try:
         import arcade
         from .app import GuardianWindow
-        window = GuardianWindow(args.data_dir, fullscreen=args.fullscreen, practice=args.practice, booth=args.booth)
+        window = GuardianWindow(args.data_dir, fullscreen=not args.windowed, practice=args.practice, booth=args.booth)
         try:
             arcade.run()
         finally:

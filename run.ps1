@@ -1,5 +1,6 @@
 ﻿param(
-    [switch]$Fullscreen,
+    [switch]$Fullscreen,  # the default now; kept so old shortcuts still work
+    [switch]$Windowed,
     [switch]$Practice,
     [string]$DataDir = "",
     [switch]$Booth,
@@ -78,7 +79,7 @@ if (-not $python) {
 }
 if ($SetupOnly) { Write-Output $python; exit 0 }
 $taskArgs = @((Join-Path $root 'run_game.py'))
-if ($Fullscreen) { $taskArgs += '--fullscreen' }
+if ($Windowed) { $taskArgs += '--windowed' }
 if ($Practice) { $taskArgs += '--practice' }
 if ($Booth) { $taskArgs += '--booth' }
 if ($DataDir) { $taskArgs += @('--data-dir', $DataDir) }

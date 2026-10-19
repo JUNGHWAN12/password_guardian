@@ -22,7 +22,7 @@ PURPLE = (194, 141, 255)
 PINK = (255, 92, 170)
 YELLOW = (255, 214, 60)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
-STARTUP_RESTORE_SECONDS = 5.0  # booth: undo a minimized start during the first seconds
+STARTUP_RESTORE_SECONDS = 8.0  # undo a minimized or background start during the first seconds
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
 
@@ -35,6 +35,7 @@ class GuardianWindow(arcade.Window):
         self.set_minimum_size(960, 540)
         self.automated = automated
         self.booth = booth  # launched by the booth launcher: one game, then quit
+        self.front_pending, self.front_check_at = True, 0.0
         self.engine = Engine(practice=practice)
         load_fonts()
         self.textures = load_textures()
@@ -73,20 +74,44 @@ class GuardianWindow(arcade.Window):
         if hasattr(self, "camera"):
             self.fit_camera()
 
-    def restore_if_minimized(self):
-        """Windows can start a fullscreen window minimized when another program (the booth launcher)
-        holds the foreground. During the first seconds, bring it back and to the front."""
+    def bring_to_front(self):
+        """Undo a minimized or background start, which Windows does when another program (the booth launcher)
+        held the foreground. Returns True once the game window is restored and in front."""
         if sys.platform != "win32":
-            return
+            return True
         try:
             import ctypes
-            user32 = ctypes.windll.user32
+            from ctypes import wintypes
+            user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+            user32.IsIconic.argtypes = user32.BringWindowToTop.argtypes = user32.SetForegroundWindow.argtypes = (wintypes.HWND,)
+            user32.ShowWindow.argtypes = (wintypes.HWND, ctypes.c_int)
+            user32.GetForegroundWindow.restype = wintypes.HWND
+            user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.c_void_p)
+            user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+            user32.AttachThreadInput.argtypes = (wintypes.DWORD, wintypes.DWORD, wintypes.BOOL)
             hwnd = self._hwnd
             if user32.IsIconic(hwnd):
                 user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            front = user32.GetForegroundWindow()
+            if front == hwnd:
+                return True
+            # Windows lets only the program in front hand over the foreground: borrow its input queue for a moment,
+            # and send a bare Alt tap, which also lifts the lock.
+            ours = kernel32.GetCurrentThreadId()
+            theirs = user32.GetWindowThreadProcessId(front, None) if front else 0
+            attached = bool(theirs and theirs != ours and user32.AttachThreadInput(ours, theirs, True))
+            try:
+                user32.keybd_event(0x12, 0, 0, 0)  # VK_MENU down
+                user32.keybd_event(0x12, 0, 2, 0)  # and up
+                user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                user32.BringWindowToTop(hwnd)
                 user32.SetForegroundWindow(hwnd)
+            finally:
+                if attached:
+                    user32.AttachThreadInput(ours, theirs, False)
+            return user32.GetForegroundWindow() == hwnd and not user32.IsIconic(hwnd)
         except Exception:
-            pass
+            return True  # never keep retrying something that cannot work here
 
     @property
     def paused(self):
@@ -182,8 +207,10 @@ class GuardianWindow(arcade.Window):
 
     def on_update(self, delta_time):
         self.clock += delta_time
-        if self.clock < STARTUP_RESTORE_SECONDS and self.fullscreen and not self.automated:
-            self.restore_if_minimized()
+        if self.front_pending and not self.automated and self.clock >= self.front_check_at:
+            # Check twice a second for the first seconds; stop once the window is in front.
+            self.front_check_at = self.clock + 0.5
+            self.front_pending = not self.bring_to_front() and self.clock < STARTUP_RESTORE_SECONDS
         self.poll_rankings()
         if self.focus_paused:
             return
