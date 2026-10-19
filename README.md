@@ -79,33 +79,21 @@ Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**�
 
 - **순위표는 노트북별로 독립**: 각 게임의 순위는 그 노트북에만 저장하고 노트북끼리 공유하지 않습니다(네트워크를 쓰지 않음). 노트북마다 TOP 10이 따로 생깁니다.
 - **아케이드 버튼은 쓰지 않음**: 게임 조작과 이름 입력은 모두 노트북 키보드로 합니다.
-- 이 게임의 순위 파일: `%LOCALAPPDATA%\PasswordGuardian\rankings.sqlite3` (노트북마다 따로)
+- **랭킹 규칙 통일(2026-10-19)**: 세 게임 모두 오늘의 TOP 10, 영문 이니셜 3자, 공통 금칙어 119개, 게임 폴더 안 `data/` 저장을 씁니다.
+- 이 게임의 순위 파일: 게임 폴더의 `data\ranking.json` (노트북마다 따로)
 
 ## 로컬 랭킹
 
-기본 DB 위치:
+**오늘의 TOP 10**을 시작 화면과 결과 화면에 보여 줍니다. 날짜가 바뀌면 새로 시작하며, 지난 기록은 파일에 남지만 보이지 않습니다. 순위는 점수 → 정답 수 → 적은 부활 → 먼저 달성한 순입니다. 현재 규칙 버전(`config.py`의 `RULESET`, 지금 `prototype-3`)의 기록만 셉니다.
 
-```text
-%LOCALAPPDATA%\PasswordGuardian\rankings.sqlite3
-```
+기록은 게임 폴더의 `data\ranking.json`에 저장합니다(빌드한 exe는 `PasswordGuardian.exe` 옆 `data\`). 저장할 때마다 직전 파일을 `ranking.json.bak`으로 남기고, 임시 파일에 쓴 뒤 바꿔 끼우므로 전원이 꺼져도 반쯤 쓰인 파일이 남지 않습니다. 파일이 깨져 있으면 `ranking_broken_날짜.json`으로 옮기고 빈 순위로 시작합니다. 손으로 고치다 형식이 틀린 줄은 건너뜁니다. 행사가 끝나면 `data` 폴더의 `ranking*` 파일을 보관하거나 지우세요. 저장 작업은 별도 스레드에서 하며, 실패해도 결과 화면과 자동 복귀는 그대로 진행됩니다.
 
-이름 입력 없이 `수호자-000001` 같은 참가 코드를 부여합니다. 완료한 게임만 저장하며 같은 사람의 재도전은 별도 기록입니다. 점수 → 정답 수 → 적은 부활 → 먼저 등록한 순서로 정렬하고, 현재 규칙 버전 `prototype-3`의 TOP 10과 이번 순위를 보여줍니다. 새 게임이나 앱 재시작으로 기록이 삭제되지 않습니다.
-
-DB 접근은 별도 작업 스레드에서 수행합니다. 저장 실패 시 결과 점수·학습 메시지·자동 복귀는 유지되며 저장 실패 안내가 나옵니다. 손상된 DB는 자동 삭제하지 않습니다. 개발 검증에는 별도의 임시 DB를 사용하여 실제 랭킹에 테스트 점수를 섞지 않습니다.
-
-앱을 종료한 뒤 백업합니다. 기존 파일이 없는 새 백업 경로를 지정해야 합니다.
+백업과 전체 초기화는 앱을 끈 뒤 명령으로 할 수 있습니다. 백업 경로는 기존 파일이 없는 새 경로여야 합니다.
 
 ```powershell
-python run_game.py --backup .\runtime\ranking-backup-01.sqlite3
+python run_game.py --backup .\runtime\ranking-backup-01.json
+python run_game.py --reset-rankings --backup .\runtime\before-reset-01.json --confirm-reset
 ```
-
-백업 검증 후 기록을 초기화하려면 아래 명령을 사용합니다. `--confirm-reset`과 `--backup`이 모두 있어야 실행됩니다. `--data-dir`로 운영했다면 같은 옵션을 추가하세요.
-
-```powershell
-python run_game.py --reset-rankings --backup .\runtime\before-reset-01.sqlite3 --confirm-reset
-```
-
-복원할 때는 앱을 종료하고 현재 DB를 먼저 백업한 다음, 백업 DB를 운영 DB 경로에 복사합니다. 다음 실행에서 TOP 10을 확인합니다. 프로토타입 규칙이 바뀌면 `config.py`의 규칙 버전도 올려 이전 기록과 분리합니다.
 
 ## 검증과 개발
 

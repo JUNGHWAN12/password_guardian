@@ -127,7 +127,7 @@ def main():
                 wait_jobs()
                 print(f"Full session {cycle+1}/10 passed", flush=True)
             capture("leaderboard")
-            assert RankingRepository(data/"rankings.sqlite3").board().total == 10
+            assert RankingRepository(data/"ranking.json").board().total == 10
 
             # Rendering and frame timing with near-cap sprites. No ranking save.
             window.engine.start()
@@ -165,12 +165,12 @@ def main():
                         booth.on_update(5)
                         booth.on_key_press(arcade.key.ESCAPE, arcade.key.MOD_SHIFT)
                     else:
-                        saved = RankingRepository(data/"rankings.sqlite3").board().total
+                        saved = RankingRepository(data/"ranking.json").board().total
                         for _ in range(int(240/0.5) + 2):
                             if booth.closed_worker:
                                 break
                             booth.on_update(0.5)
-                        assert RankingRepository(data/"rankings.sqlite3").board().total == saved + 1
+                        assert RankingRepository(data/"ranking.json").board().total == saved + 1
                 assert booth.closed_worker, quit_how
             window.switch_to()
             report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",

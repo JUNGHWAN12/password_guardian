@@ -13,7 +13,7 @@ def main():
     parser.add_argument("--practice", action="store_true", help="랭킹에 저장하지 않는 연습 모드")
     parser.add_argument("--booth", action="store_true",
                         help="부스 런처용: 한 판이 끝나면 종료, 시작 화면 Esc·언제든 Shift+Esc로 종료")
-    parser.add_argument("--data-dir", type=Path, default=default_data_dir(), help="랭킹 저장 폴더")
+    parser.add_argument("--data-dir", type=Path, default=default_data_dir(), help="랭킹 저장 폴더(기본: 게임 폴더의 data)")
     parser.add_argument("--backup", type=Path, help="랭킹 DB 백업 후 종료")
     parser.add_argument("--reset-rankings", action="store_true", help="백업 후 랭킹 초기화")
     parser.add_argument("--confirm-reset", action="store_true", help="초기화 명시적 확인")
@@ -21,8 +21,8 @@ def main():
     if args.reset_rankings and not (args.backup and args.confirm_reset):
         parser.error("초기화에는 --backup 새파일경로 --confirm-reset이 필요합니다.")
     if args.backup:
-        repo = RankingRepository(args.data_dir / "rankings.sqlite3")
-        print(f"DB: {repo.path.resolve()}")
+        repo = RankingRepository(args.data_dir / "ranking.json")
+        print(f"랭킹 파일: {repo.path.resolve()}")
         if args.reset_rankings:
             repo.reset(args.backup)
             print("백업 검증 후 랭킹을 초기화했습니다.")

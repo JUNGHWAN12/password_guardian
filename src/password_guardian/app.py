@@ -8,7 +8,7 @@ from arcade.types import LBWH, LRBT
 from .assets import load_fonts, load_textures
 from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
 from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
-from .rankings import Board, RankingWorker, participant_code
+from .rankings import Board, RankingWorker
 
 INK = (7, 14, 24)
 PANEL = (13, 27, 42, 244)
@@ -55,7 +55,7 @@ class GuardianWindow(arcade.Window):
         self.banner, self.banner_left = None, 0.0
         self.board = Board((), 0, None)
         self.rank_status = "기록을 불러오는 중"
-        self.worker = RankingWorker(Path(data_dir) / "rankings.sqlite3")
+        self.worker = RankingWorker(Path(data_dir) / "ranking.json")
         self.jobs = []
         self.request_board()
         self.sprite_maps = {name: {} for name in ("player", "enemies", "items", "shots", "threats")}
@@ -173,7 +173,7 @@ class GuardianWindow(arcade.Window):
                 board = future.result()
                 if token == active:
                     self.board = board
-                    self.rank_status = "기록 저장 완료" if token else "이 PC에 저장된 기록"
+                    self.rank_status = "기록 저장 완료" if token else "이 PC · 날짜가 바뀌면 새로 시작해요"
             except Exception as exc:
                 print(f"Ranking unavailable: {exc}", file=sys.stderr)
                 if token == active:
@@ -336,24 +336,24 @@ class GuardianWindow(arcade.Window):
     def draw_board(self, x, y, w, h, *, result=False):
         self.panel(x, y, w, h)
         self.txt("board-tag", "LOCAL LEADERBOARD", x+30, y+h-27, 16, CYAN)
-        self.txt("board-title", "이 PC의 기록 TOP 10", x+30, y+h-65, 30, bold=True)
+        self.txt("board-title", "오늘의 TOP 10", x+30, y+h-65, 30, bold=True)
         self.txt("board-status", self.rank_status, x+30, y+h-118, 16, MUTED, width=int(w-60))
-        self.txt("board-head", "순위     참가 코드", x+30, y+h-177, 18, MUTED)
+        self.txt("board-head", "순위     이름", x+30, y+h-177, 18, MUTED)
         self.txt("board-score-head", "점수", x+w-30, y+h-177, 18, MUTED, anchor="right")
         if not self.board.rows:
             self.txt("board-empty", "첫 번째 기록에 도전하세요", x+30, y+h-253, 22, MUTED, width=int(w-60))
-        own_id = (self.board.own["id"] if result and self.board.own
+        own_id = (self.board.own["session_id"] if result and self.board.own
                   and self.board.own["session_id"] == self.engine.result.session_id else None)
         for i, row in enumerate(self.board.rows):
             row_y = y+h-225-i*47
-            own = row["id"] == own_id
+            own = row["session_id"] == own_id
             if own:
                 arcade.draw_lbwh_rectangle_filled(x+17, row_y-33, w-34, 43, (24, 73, 82, 255))
             self.txt(f"rank{i}", f"{row['rank']:02}", x+30, row_y, 20, CYAN if i < 3 else MUTED)
-            self.txt(f"code{i}", participant_code(row["id"]), x+102, row_y, 19, WHITE)
+            self.txt(f"name{i}", row["name"], x+102, row_y, 22, WHITE, bold=True)
             self.txt(f"score{i}", f"{row['score']:,}", x+w-30, row_y, 22, CYAN if own else WHITE, anchor="right")
-        self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 등록", x+30, y+81, 15, MUTED)
-        self.txt("board-total", f"총 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
+        self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 달성", x+30, y+81, 15, MUTED)
+        self.txt("board-total", f"오늘 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
 
     def sight(self, enemy):
         reach, steps = 900, 8
@@ -495,7 +495,7 @@ class GuardianWindow(arcade.Window):
         self.txt("result-stats", summary, 125, 558, 23, WHITE)
         own = self.board.own
         if result.eligible and own and own["session_id"] == result.session_id:
-            rank_message = f"{participant_code(own['id'])}   /   이번 기록 {own['rank']}위 · 총 {self.board.total}개"
+            rank_message = f"오늘 {own['rank']}위   ·   오늘 {self.board.total}개 기록 중"
         else:
             rank_message = self.rank_status
         self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
