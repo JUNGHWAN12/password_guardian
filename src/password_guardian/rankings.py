@@ -96,7 +96,7 @@ class RankingRepository:
             own = dict(row, rank=1 + sum(sort_key(r) <= sort_key(row) for r in today))
         return Board(tuple(ranked[:TOP]), len(today), own)
 
-    def record(self, result: Result, name=ANONYMOUS):
+    def record(self, result: Result, name):
         if not result.eligible:
             return self.board(result.ruleset_version)
         row = row_for(result, name)
@@ -125,8 +125,15 @@ class RankingWorker:
         self.repository = RankingRepository(path)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="guardian-ranking")
 
-    def submit(self, result=None):
-        return self.executor.submit(lambda: self.repository.record(result) if result else self.repository.board())
+    def submit(self, result=None, name=None):
+        # No result: today's board. A result without a name: where it would rank, unsaved. Both: save it.
+        def work():
+            if result is None:
+                return self.repository.board()
+            if name is None:
+                return self.repository.board(result.ruleset_version, candidate=result)
+            return self.repository.record(result, name)
+        return self.executor.submit(work)
 
     def close(self):
         self.executor.shutdown(wait=False, cancel_futures=False)

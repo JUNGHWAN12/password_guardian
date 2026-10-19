@@ -106,7 +106,29 @@ def main():
                         assert len(window.engine.enemies) <= 20
                     assert window.engine.state == ("RESULT" if stage == 2 else "CHOICE")
                 wait_jobs()
-                assert window.board.own is not None
+                # Each of the first ten games makes today's TOP 10 and asks for initials.
+                assert window.entry == "typing", window.rank_status
+
+                def press(key):
+                    window.on_key_press(key, 0)
+                    window.on_key_release(key, 0)
+                if cycle == 0:
+                    for key in (arcade.key.S, arcade.key.E, arcade.key.X, arcade.key.ENTER):
+                        press(key)  # a banned name is refused, nothing saved
+                    assert window.entry == "typing" and window.entry_warning
+                    for _ in range(3):
+                        press(arcade.key.BACKSPACE)
+                    press(arcade.key.K)
+                    press(arcade.key.ENTER)  # too short
+                    assert window.entry == "typing" and window.entry_text == "K"
+                    capture("initials")
+                    press(arcade.key.BACKSPACE)
+                for key in (arcade.key.K, arcade.key.A + cycle, arcade.key.M):
+                    press(key)
+                press(arcade.key.ENTER)
+                assert window.entry == "saved"
+                wait_jobs()
+                assert window.board.own is not None and window.board.own["name"] == "K" + chr(65+cycle) + "M"
                 assert window.board.total == cycle+1
                 assert window.board.own["session_id"] == window.engine.result.session_id
                 if cycle == 0:
@@ -170,10 +192,15 @@ def main():
                             if booth.closed_worker:
                                 break
                             booth.on_update(0.5)
-                        assert RankingRepository(data/"ranking.json").board().total == saved + 1
+                            for _, future in list(booth.jobs):  # real seconds pass between frames in a real game
+                                future.result(timeout=5)
+                        # Nobody typed initials (or it missed the TOP 10): the record is not kept.
+                        assert RankingRepository(data/"ranking.json").board().total == saved
+                        assert booth.entry == "closed", booth.entry
+                        report["booth_result_message"] = booth.rank_status
                 assert booth.closed_worker, quit_how
             window.switch_to()
-            report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",
+            report["checks"] = ["10 complete 240-second simulated sessions", "initials entry and banned names", "booth mode quits", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
                                 "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:

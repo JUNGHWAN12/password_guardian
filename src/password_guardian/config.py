@@ -15,5 +15,6 @@ CHOICE_SECONDS = 8.0
 ANSWER_SECONDS = 6.0
 COMBAT_SECONDS = 52.0
 RESULT_SECONDS = 40.0
+NAME_SECONDS = 25.0  # initials must be saved this far into the result screen, or the record is not kept
 MAX_ENEMIES, MAX_ENEMY_BULLETS, MAX_PLAYER_BULLETS = 30, 300, 120
 MANUAL_PAUSE_SECONDS = 30.0  # Esc pause resumes by itself so an abandoned game still returns to TITLE

@@ -45,22 +45,22 @@ class RankingTests(unittest.TestCase):
         c = self.result(100, 2, 1)
         d = self.result(100, 2, 1)
         for result in (d, a, c, b):  # saving order does not matter; completion time does
-            self.repo.record(result)
+            self.repo.record(result, "AAA")
         self.assertEqual([r["session_id"] for r in self.repo.board().rows],
                          [c.session_id, d.session_id, b.session_id, a.session_id])
 
     def test_top_ten_and_own_position_outside_ten(self):
         target = self.result(0)
-        self.repo.record(target)
+        self.repo.record(target, "AAA")
         for score in range(1, 13):
-            self.repo.record(self.result(score))
+            self.repo.record(self.result(score), "AAA")
         board = self.repo.board(session_id=target.session_id)
         self.assertEqual((len(board.rows), board.total, board.own["rank"]), (10, 13, 13))
         self.assertEqual([r["rank"] for r in board.rows], list(range(1, 11)))
 
     def test_only_today_counts(self):
-        self.repo.record(self.result(900, day="2026-10-23"))
-        self.repo.record(self.result(100))
+        self.repo.record(self.result(900, day="2026-10-23"), "AAA")
+        self.repo.record(self.result(100), "AAA")
         board = self.repo.board()
         self.assertEqual((board.total, [r["score"] for r in board.rows]), (1, [100]))
         self.now = datetime(2026, 10, 25, 9, 0)  # the next morning starts empty
@@ -69,21 +69,21 @@ class RankingTests(unittest.TestCase):
 
     def test_unsaved_candidate_rank(self):
         for score in (300, 200, 100):
-            self.repo.record(self.result(score))
+            self.repo.record(self.result(score), "AAA")
         self.assertEqual(self.repo.board(candidate=self.result(200)).own["rank"], 3)  # behind the earlier 200
         self.assertEqual(self.repo.board(candidate=self.result(250)).own["rank"], 2)
         self.assertEqual(self.repo.board().total, 3)
 
     def test_practice_not_saved_and_rulesets_separate(self):
-        self.repo.record(self.result(eligible=False))
+        self.repo.record(self.result(eligible=False), "AAA")
         self.assertFalse(self.path.exists())
-        self.repo.record(self.result(ruleset_version="other"))
+        self.repo.record(self.result(ruleset_version="other"), "AAA")
         self.assertEqual(self.repo.board().total, 0)
         self.assertEqual(self.repo.board("other").total, 1)
 
     def test_invalid_score_rejected(self):
         with self.assertRaises(ValueError):
-            self.repo.record(self.result(score=-1))
+            self.repo.record(self.result(score=-1), "AAA")
         self.assertEqual(self.repo.board().total, 0)
 
     def test_broken_file_moved_aside_and_bad_rows_skipped(self):
@@ -93,27 +93,27 @@ class RankingTests(unittest.TestCase):
         broken = list(self.path.parent.glob("ranking_broken_*.json"))
         self.assertEqual([p.read_text(encoding="utf-8") for p in broken], ["{ not json"])
         good = self.result(50)
-        self.repo.record(good)
+        self.repo.record(good, "AAA")
         data = json.loads(self.path.read_text(encoding="utf-8"))
         data["records"].append({"name": "ZZZ", "score": "lots"})  # hand-edited by mistake
         self.path.write_text(json.dumps(data), encoding="utf-8")
         self.assertEqual([r["session_id"] for r in self.repo.board().rows], [good.session_id])
 
     def test_save_keeps_previous_file(self):
-        self.repo.record(self.result(10))
-        self.repo.record(self.result(20))
+        self.repo.record(self.result(10), "AAA")
+        self.repo.record(self.result(20), "AAA")
         previous = json.loads(self.path.with_name("ranking.json.bak").read_text(encoding="utf-8"))
         self.assertEqual(len(previous["records"]), 1)
 
     def test_backup_reset_and_restore(self):
-        self.repo.record(self.result())
+        self.repo.record(self.result(), "AAA")
         backup = self.folder / "backup.json"
         self.repo.reset(backup)
         self.assertEqual(self.repo.board().total, 0)
         self.assertEqual(RankingRepository(backup, clock=lambda: self.now).board().total, 1)
 
     def test_existing_backup_refused_without_resetting(self):
-        self.repo.record(self.result())
+        self.repo.record(self.result(), "AAA")
         backup = self.folder / "backup.json"
         backup.write_bytes(b"existing backup")
         with self.assertRaises(ValueError):
@@ -128,9 +128,12 @@ class RankingTests(unittest.TestCase):
         worker = RankingWorker(self.path)
         try:
             result = replace(Session().finish())
-            board = worker.submit(result).result(timeout=5)
+            preview = worker.submit(result).result(timeout=5)
+            self.assertEqual((preview.total, preview.own["rank"]), (0, 1))  # not saved yet
+            board = worker.submit(result, "KIM").result(timeout=5)
             self.assertEqual(board.own["session_id"], result.session_id)
-            self.assertEqual(worker.submit(result).result(timeout=5).total, 1)
+            self.assertEqual(worker.submit(result, "KIM").result(timeout=5).total, 1)
+            self.assertEqual(worker.submit().result(timeout=5).rows[0]["name"], "KIM")
         finally:
             worker.close()
 
