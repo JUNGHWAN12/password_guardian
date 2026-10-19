@@ -6,10 +6,10 @@ import arcade
 from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
-from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, NAME_SECONDS
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, NAME_SECONDS, OPERATOR_HOLD, EDITOR_IDLE
 from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .names import NAME_LENGTH, is_allowed
-from .rankings import TOP, Board, RankingWorker
+from .rankings import ANONYMOUS, TOP, Board, RankingWorker
 
 INK = (7, 14, 24)
 PANEL = (13, 27, 42, 244)
@@ -59,6 +59,10 @@ class GuardianWindow(arcade.Window):
         disable_ime(self)
         # Initials on the result screen: None, "typing", "saved" or "closed" (skipped, timed out, outside TOP 10).
         self.entry, self.entry_text, self.entry_warning = None, "", ""
+        # Staff tools on the title screen: hold F8 to fix a name, hold F9 to clear today's board.
+        self.hold_key, self.hold_since = None, 0.0
+        self.editing, self.edit_index, self.edit_armed, self.edit_idle = False, 0, False, 0.0
+        self.notice, self.notice_left = "", 0.0
         self.engine = Engine(practice=practice)
         load_fonts()
         self.textures = load_textures()
@@ -129,6 +133,16 @@ class GuardianWindow(arcade.Window):
             self.resume_in = 0.0 if self.manual_paused else 3.0
 
     def on_key_press(self, key, modifiers):
+        # Staff: Ctrl+Shift+Q quits from any screen, the same key as Clean Data Labeler.
+        if key == arcade.key.Q and modifiers & arcade.key.MOD_CTRL and modifiers & arcade.key.MOD_SHIFT:
+            self.finish()
+            return
+        if self.editing:
+            self.edit_key(key)
+            return
+        if self.engine.state == "TITLE" and key in (arcade.key.F8, arcade.key.F9) and not self.paused:
+            self.hold_key, self.hold_since = key, self.clock
+            return
         # Booth: Esc on the title screen or Shift+Esc at any time hands control back to the launcher.
         # Esc and Shift work whatever the Korean/English input state is.
         if self.booth and key == arcade.key.ESCAPE and (self.engine.state == "TITLE" or modifiers & arcade.key.MOD_SHIFT):
@@ -168,6 +182,8 @@ class GuardianWindow(arcade.Window):
             self.engine.skill()
 
     def on_key_release(self, key, modifiers):
+        if key == self.hold_key:
+            self.hold_key = None
         self.keys.discard(key)
         self.control_keys.discard(key)
 
@@ -210,6 +226,44 @@ class GuardianWindow(arcade.Window):
                 self.entry = "saved"
                 self.request_board(self.engine.result, self.entry_text)
 
+    def staff_job(self, future, notice):
+        self.jobs.append((("staff", None), future))
+        self.notice, self.notice_left = notice, 5.0
+
+    def staff_hold(self, delta_time):
+        if self.hold_key and self.engine.state == "TITLE" and self.clock - self.hold_since >= OPERATOR_HOLD:
+            key, self.hold_key = self.hold_key, None
+            if key == arcade.key.F9:
+                self.staff_job(self.worker.reset_today(), "오늘 순위를 초기화했어요 · 지우기 전 파일은 data 폴더에 백업")
+            elif self.board.rows:
+                self.editing, self.edit_index, self.edit_armed, self.edit_idle = True, 0, False, 0.0
+            else:
+                self.notice, self.notice_left = "오늘 기록이 없어 고칠 이름이 없어요", 4.0
+        if self.editing:
+            self.edit_idle += delta_time
+            if self.edit_idle >= EDITOR_IDLE or self.engine.state != "TITLE":
+                self.editing = False
+        self.notice_left = max(0, self.notice_left-delta_time)
+
+    def edit_key(self, key):
+        """Staff name editor: pick a row, press Enter twice, and its name becomes ???. Score and place stay."""
+        self.edit_idle = 0.0
+        rows = self.board.rows
+        if key in (arcade.key.F8, arcade.key.ESCAPE) or not rows:
+            self.editing = False
+        elif key in (arcade.key.UP, arcade.key.DOWN):
+            self.edit_index = (self.edit_index + (1 if key == arcade.key.DOWN else -1)) % len(rows)
+            self.edit_armed = False
+        elif key in (arcade.key.ENTER, arcade.key.RETURN, arcade.key.NUM_ENTER):
+            row = rows[min(self.edit_index, len(rows)-1)]
+            if row["name"] == ANONYMOUS:
+                self.notice, self.notice_left = "이미 ???로 바뀐 기록이에요", 3.0
+            elif not self.edit_armed:
+                self.edit_armed = True
+            else:
+                self.edit_armed = False
+                self.staff_job(self.worker.anonymize(row["session_id"]), f"{row['rank']}위 이름을 ???로 바꿨어요")
+
     def close_entry(self, message):
         self.entry, self.rank_status = "closed", message
 
@@ -238,6 +292,9 @@ class GuardianWindow(arcade.Window):
                         self.rank_status = "이 PC · 날짜가 바뀌면 새로 시작해요"
                     elif token[0] == "preview":
                         self.ranked(board)
+                    elif token[0] == "staff":
+                        self.rank_status = "이 PC · 날짜가 바뀌면 새로 시작해요"
+                        self.edit_index = min(self.edit_index, max(0, len(board.rows)-1))
                     else:
                         self.rank_status = "기록 저장 완료"
             except Exception as exc:
@@ -254,6 +311,7 @@ class GuardianWindow(arcade.Window):
         if self.clock < STARTUP_RESTORE_SECONDS and self.fullscreen and not self.automated:
             self.restore_if_minimized()
         self.poll_rankings()
+        self.staff_hold(delta_time)
         if self.focus_paused:
             return
         if self.manual_paused:
@@ -404,6 +462,38 @@ class GuardianWindow(arcade.Window):
         keys = "Esc 끝내기" if self.booth else "F11 전체 화면    ·    Esc 일시정지"
         self.txt("footer", f"{keys}    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
         self.draw_board(1200, 160, 620, 815)
+        if self.editing:
+            self.draw_editor(1200, 160, 620, 815)
+        if self.hold_key:
+            left = max(0, math.ceil(OPERATOR_HOLD - (self.clock - self.hold_since)))
+            what = "운영자 순위 편집" if self.hold_key == arcade.key.F8 else "오늘 순위 초기화"
+            self.txt("staff-hold", f"{what} · {left}초 더 누르고 있으세요", 1200, 120, 18, GOLD)
+        elif self.notice_left:
+            self.txt("staff-notice", self.notice, 1200, 120, 18, GOLD)
+
+    def draw_editor(self, x, y, w, h):
+        self.panel(x, y, w, h, fill=(31, 20, 26, 250), edge=(150, 112, 50))
+        self.txt("ed-tag", "STAFF ONLY", x+30, y+h-27, 16, GOLD)
+        self.txt("ed-title", "운영자 순위 편집", x+30, y+h-65, 30, bold=True)
+        self.txt("ed-help", "부적절한 이름 하나를 ???로 바꿉니다. 점수와 순위는 그대로예요.", x+30, y+h-118, 16, MUTED,
+                 width=int(w-60))
+        for i, row in enumerate(self.board.rows):
+            row_y = y+h-225-i*47
+            selected = i == self.edit_index
+            if selected:
+                arcade.draw_lbwh_rectangle_filled(x+17, row_y-33, w-34, 43, (96, 64, 30, 255) if self.edit_armed
+                                                  else (64, 52, 38, 255))
+            self.txt(f"ed-rank{i}", f"{row['rank']:02}", x+30, row_y, 20, GOLD if selected else MUTED)
+            self.txt(f"ed-name{i}", row["name"], x+102, row_y, 22, WHITE, bold=True)
+            self.txt(f"ed-score{i}", f"{row['score']:,}", x+w-30, row_y, 22, WHITE, anchor="right")
+        row = self.board.rows[min(self.edit_index, len(self.board.rows)-1)] if self.board.rows else None
+        if self.edit_armed and row:
+            hint = f"Enter를 한 번 더 누르면 {row['name']} → ???"
+        else:
+            hint = "↑↓ 고르기 · Enter 두 번 ???로 바꾸기 · F8 끝내기"
+        self.txt("ed-hint", hint, x+30, y+81, 16, GOLD if self.edit_armed else WHITE, width=int(w-60))
+        self.txt("ed-idle", f"{max(0, math.ceil(EDITOR_IDLE - self.edit_idle))}초 동안 입력이 없으면 닫혀요", x+30, y+45, 15, MUTED)
+
 
     def draw_board(self, x, y, w, h, *, result=False):
         self.panel(x, y, w, h)

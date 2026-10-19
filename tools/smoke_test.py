@@ -150,6 +150,36 @@ def main():
                 print(f"Full session {cycle+1}/10 passed", flush=True)
             capture("leaderboard")
             assert RankingRepository(data/"ranking.json").board().total == 10
+            # Staff keys on the title: hold F8 for the name editor, Enter twice turns a name into ???;
+            # hold F9 to clear today's board; Ctrl+Shift+Q quits.
+            assert window.engine.state == "TITLE"
+            wait_jobs()
+            window.on_key_press(arcade.key.F8, 0)
+            window.on_update(2.0)
+            window.on_key_release(arcade.key.F8, 0)  # let go too early: nothing happens
+            assert not window.editing
+            window.on_key_press(arcade.key.F8, 0)
+            for _ in range(7):
+                window.on_update(0.5)
+            window.on_key_release(arcade.key.F8, 0)
+            assert window.editing
+            window.on_key_press(arcade.key.DOWN, 0)
+            window.on_key_press(arcade.key.ENTER, 0)
+            assert window.edit_armed and window.engine.state == "TITLE"
+            capture("staff_editor")
+            target = window.board.rows[1]["session_id"]
+            window.on_key_press(arcade.key.ENTER, 0)
+            wait_jobs()
+            assert [r["name"] for r in window.board.rows if r["session_id"] == target] == ["???"]
+            window.on_key_press(arcade.key.F8, 0)
+            assert not window.editing
+            window.on_key_press(arcade.key.F9, 0)
+            for _ in range(7):
+                window.on_update(0.5)
+            window.on_key_release(arcade.key.F9, 0)
+            wait_jobs()
+            assert window.board.total == 0 and RankingRepository(data/"ranking.json").board().total == 0
+            assert list(data.glob("ranking_reset_*.json"))
 
             # Rendering and frame timing with near-cap sprites. No ranking save.
             window.engine.start()
@@ -175,11 +205,13 @@ def main():
             capture("letterbox_4_3")
             # Booth launcher mode: Esc on the title or Shift+Esc mid-game quits; a finished game quits by itself
             # after its result is saved.
-            for quit_how in ("title-esc", "shift-esc", "finished"):
+            for quit_how in ("title-esc", "shift-esc", "ctrl-shift-q", "finished"):
                 booth = GuardianWindow(data, visible=False, automated=True, booth=True)
                 booth.switch_to()
                 if quit_how == "title-esc":
                     booth.on_key_press(arcade.key.ESCAPE, 0)
+                elif quit_how == "ctrl-shift-q":
+                    booth.on_key_press(arcade.key.Q, arcade.key.MOD_CTRL | arcade.key.MOD_SHIFT)
                 else:
                     booth.on_key_press(arcade.key.ENTER, 0)
                     booth.on_key_release(arcade.key.ENTER, 0)
@@ -200,7 +232,7 @@ def main():
                         report["booth_result_message"] = booth.rank_status
                 assert booth.closed_worker, quit_how
             window.switch_to()
-            report["checks"] = ["10 complete 240-second simulated sessions", "initials entry and banned names", "booth mode quits", "correct/wrong/missing choices",
+            report["checks"] = ["10 complete 240-second simulated sessions", "initials entry and banned names", "staff F8 editor, F9 reset, Ctrl+Shift+Q", "booth mode quits", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
                                 "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:

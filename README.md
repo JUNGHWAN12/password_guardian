@@ -21,6 +21,9 @@ python run_game.py
 | F11 | 전체 화면 전환 |
 | 창 닫기 / Alt+F4 | 프로그램 종료 |
 | Esc(시작 화면) · Shift+Esc | `--booth`로 실행했을 때 게임 종료 |
+| Ctrl+Shift+Q | 운영진: 어느 화면에서든 게임 종료(클린 데이터 라벨러와 같은 키) |
+| F8 (시작 화면에서 3초 누르기) | 운영진: **순위 편집** — 부적절한 이름 하나를 골라 `???`로 바꿈(점수·순위 그대로). ↑↓로 고르고 Enter 두 번, F8 또는 Esc로 닫기. 30초 동안 입력이 없으면 자동으로 닫힘 |
+| F9 (시작 화면에서 3초 누르기) | 운영진: **오늘 순위 초기화** — 지우기 전 파일 전체를 `data\ranking_reset_날짜.json`으로 백업 |
 
 ```powershell
 python run_game.py --fullscreen

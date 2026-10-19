@@ -107,6 +107,24 @@ class RankingRepository:
             self.save(rows + [row])
         return self.board(result.ruleset_version, result.session_id)
 
+    def anonymize(self, session_id):
+        """Staff: replace one unsuitable name with ???. Score and place stay; the previous file stays as .bak."""
+        rows = self.load()
+        for row in rows:
+            if row["session_id"] == session_id and row["name"] != ANONYMOUS:
+                row["name"] = ANONYMOUS
+                self.save(rows)
+                break
+        return self.board()
+
+    def reset_today(self):
+        """Staff: clear today's records after copying the whole file to ranking_reset_<time>.json."""
+        if self.path.exists():
+            shutil.copy2(self.path, self.path.with_name(f"ranking_reset_{self.stamp()}.json"))
+        day = self.clock().date().isoformat()
+        self.save([row for row in self.load() if row["completed_at"][:10] != day])
+        return self.board()
+
     def backup(self, destination):
         destination = Path(destination).resolve()
         if destination == self.path.resolve() or destination.exists():
@@ -134,6 +152,12 @@ class RankingWorker:
                 return self.repository.board(result.ruleset_version, candidate=result)
             return self.repository.record(result, name)
         return self.executor.submit(work)
+
+    def anonymize(self, session_id):
+        return self.executor.submit(self.repository.anonymize, session_id)
+
+    def reset_today(self):
+        return self.executor.submit(self.repository.reset_today)
 
     def close(self):
         self.executor.shutdown(wait=False, cancel_futures=False)

@@ -121,6 +121,22 @@ class RankingTests(unittest.TestCase):
         self.assertEqual(self.repo.board().total, 1)
         self.assertEqual(backup.read_bytes(), b"existing backup")
 
+    def test_staff_anonymize_keeps_score_and_place(self):
+        a, b = self.result(300), self.result(200)
+        self.repo.record(a, "BAD")
+        self.repo.record(b, "KIM")
+        board = self.repo.anonymize(a.session_id)
+        self.assertEqual([(r["rank"], r["name"], r["score"]) for r in board.rows], [(1, "???", 300), (2, "KIM", 200)])
+        self.assertTrue(self.path.with_name("ranking.json.bak").exists())
+
+    def test_staff_reset_clears_only_today_after_a_backup(self):
+        self.repo.record(self.result(900, day="2026-10-23"), "OLD")
+        self.repo.record(self.result(100), "NEW")
+        self.assertEqual(self.repo.reset_today().total, 0)
+        self.assertEqual([r["name"] for r in self.repo.load()], ["OLD"])
+        backups = list(self.path.parent.glob("ranking_reset_*.json"))
+        self.assertEqual(len(json.loads(backups[0].read_text(encoding="utf-8"))["records"]), 2)
+
     def test_default_folder_is_data_beside_the_game(self):
         self.assertEqual(default_data_dir(), Path(__file__).resolve().parents[1] / "data")
 
