@@ -26,12 +26,12 @@ python run_game.py
 | F9 (시작 화면에서 3초 누르기) | 운영진: **오늘 순위 초기화** — 지우기 전 파일 전체를 `data\ranking_reset_날짜.json`으로 백업 |
 
 ```powershell
-python run_game.py --fullscreen
+python run_game.py --windowed
 python run_game.py --practice
 python run_game.py --data-dir .\runtime\local-play
 ```
 
-`--practice`는 전체 게임을 동일하게 플레이하되 결과를 랭킹에 등록하지 않습니다. 기본 창은 1280×720이며 화면 내부는 1920×1080 좌표를 사용합니다. 창 크기를 바꿔도 종횡비를 유지하고 남는 영역에 여백을 둡니다. 창을 다른 프로그램으로 전환하면 게임과 타이머가 멈춥니다.
+게임은 **전체 화면으로 시작**합니다(`F11`로 창 모드 전환, 개발할 때는 `--windowed`). 다른 프로그램(부스 런처 등)이 앞에 있는 동안 켜져 최소화되거나 뒤로 숨으면, 처음 8초 안에 스스로 창을 되살려 맨 앞으로 가져옵니다. `--practice`는 전체 게임을 동일하게 플레이하되 결과를 랭킹에 등록하지 않습니다. 창 모드의 기본 크기는 1280×720이며 화면 내부는 1920×1080 좌표를 사용합니다. 창 크기를 바꿔도 종횡비를 유지하고 남는 영역에 여백을 둡니다. 창을 다른 프로그램으로 전환하면 게임과 타이머가 멈춥니다.
 
 ## 다른 PC에 설치
 
@@ -49,7 +49,7 @@ python -m venv .venv
 
 ## 부스 런처용 실행 파일(.exe)
 
-Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**하면 `dist\PasswordGuardian\PasswordGuardian.exe`(옆의 `PasswordGuardian.pkg` 파일, `_internal` 폴더와 함께 사용 — 백신이 실행 파일 읽기를 막아도 켜지도록 코드를 `.exe` 밖에 둡니다)와 `dist\PasswordGuardian.zip`이 만들어집니다. 처음에는 인터넷이 필요합니다. 런처에서는 `--booth --fullscreen`으로 실행합니다. `--booth`는 한 판이 끝나면(결과 화면 뒤) 스스로 종료하고, 시작 화면의 `Esc`와 운영진용 `Shift + Esc`로도 종료합니다. 오류로 꺼지면 종료 코드 1과 함께 데이터 폴더의 `error.log`에 내용을 남깁니다. 런처 담당자에게 전달할 내용은 [부스 런처 제출 정보](docs/부스_런처_제출정보.md)에 정리했습니다.
+Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**하면 `dist\PasswordGuardian\PasswordGuardian.exe`(옆의 `PasswordGuardian.pkg` 파일, `_internal` 폴더와 함께 사용 — 백신이 실행 파일 읽기를 막아도 켜지도록 코드를 `.exe` 밖에 둡니다)와 `dist\PasswordGuardian.zip`이 만들어집니다. 처음에는 인터넷이 필요합니다. 런처에서는 `--booth`로 실행합니다(전체 화면은 기본값이며 `--fullscreen`을 붙여도 됩니다). `--booth`는 한 판이 끝나면(결과 화면 뒤) 스스로 종료하고, 시작 화면의 `Esc`와 운영진용 `Shift + Esc`로도 종료합니다. 오류로 꺼지면 종료 코드 1과 함께 데이터 폴더의 `error.log`에 내용을 남깁니다. 런처 담당자에게 전달할 내용은 [부스 런처 제출 정보](docs/부스_런처_제출정보.md)에 정리했습니다.
 
 ## 구현된 플레이
 

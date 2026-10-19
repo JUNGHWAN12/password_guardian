@@ -25,4 +25,4 @@ try {
 Write-Host ""
 Write-Host "완료: $root\dist\PasswordGuardian\PasswordGuardian.exe" -ForegroundColor Green
 Write-Host "부스 제출용 압축 파일: $root\dist\PasswordGuardian.zip"
-Write-Host "런처 실행 옵션: --booth --fullscreen"
+Write-Host "런처 실행 옵션: --booth (전체 화면은 기본값)"
