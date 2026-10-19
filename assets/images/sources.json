@@ -1,40 +1,5 @@
 [
   {
-    "file": "assets/images/player.png",
-    "original": "assets/candidates/space-shooter-remastered/pack/PNG/playerShip2_blue.png",
-    "license": "CC0-1.0",
-    "edit": "unchanged",
-    "sha256": "c8b490d7658bd2ee0f0bd6eb761d0dd3cce7a6381efd9831bb62e75aa1348352"
-  },
-  {
-    "file": "assets/images/guess_bot.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_001.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (255, 154, 48)",
-    "sha256": "8d794c2a8eb05eda1f2aa6e671f999d16c4810469c3d92ba31a2aef2641ceeb3"
-  },
-  {
-    "file": "assets/images/dictionary_drone.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_003.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (188, 91, 245)",
-    "sha256": "4d5cfb7e457e8dd9761f89e8d01f6c6d4428303399262dd64110cf1732cd0a5f"
-  },
-  {
-    "file": "assets/images/leaked_swarm.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_004.png",
-    "license": "CC0-1.0",
-    "edit": "red armor recolored to (255, 163, 55)",
-    "sha256": "d7fb8759d9d8a5350dfe0f5b14fe9116bb2a5716321d1d8bca53bb86b4905324"
-  },
-  {
-    "file": "assets/images/intruder.png",
-    "original": "assets/candidates/space-shooter-extension/pack/PNG/Sprites X2/Ships/spaceShips_005.png",
-    "license": "CC0-1.0",
-    "edit": "unchanged",
-    "sha256": "46f0839db91ce20a9e58470a6a0026a149a8b9b72551d87622296fcce00824d8"
-  },
-  {
     "file": "assets/images/player_bullet.png",
     "original": "assets/candidates/space-shooter-remastered/pack/PNG/Lasers/laserBlue01.png",
     "license": "CC0-1.0",
@@ -46,5 +11,141 @@
     "original": "assets/candidates/review/digital_vault_background_proposal.png",
     "edit": "prototype composite, see ASSET_MANIFEST.md",
     "license": "Kenney base tile CC0 + project geometry"
+  },
+  {
+    "file": "assets/images/player.png",
+    "original": "assets/generated/player.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 152x214",
+    "sha256": "ad538a36e012578bc51edb66dd87e43d0e81a2db12b94b07947ecd6b011adfaf"
+  },
+  {
+    "file": "assets/images/guess_bot.png",
+    "original": "assets/generated/guess_bot.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 60x235",
+    "sha256": "21773101566d7e0cb1425c9804066c2eb688e99b43844c5449fcf764209678d7"
+  },
+  {
+    "file": "assets/images/dictionary_drone.png",
+    "original": "assets/generated/dictionary_drone.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 220x162",
+    "sha256": "09dd131aceb1aea8d85b67f010a623b8153282abe6c73ad551f629629c398c6a"
+  },
+  {
+    "file": "assets/images/leaked_swarm.png",
+    "original": "assets/generated/leaked_swarm.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 128x162",
+    "sha256": "1ea5c48cdae23886531a7ac72a7d9af5ecb0e954c653ea232986c592db45d71a"
+  },
+  {
+    "file": "assets/images/intruder.png",
+    "original": "assets/generated/intruder.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 400x482",
+    "sha256": "dfc61bd1b4962066daf8f24acfa48be3ddb710772bf79b8654b36f982cbda1bc"
+  },
+  {
+    "file": "assets/images/keylogger.png",
+    "original": "assets/generated/keylogger.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 144x170",
+    "sha256": "17269e38bb1c56cd8f7728d00cecbb3cf00dfae26ca413ca0599dc2830278b91"
+  },
+  {
+    "file": "assets/images/phishing_lure_disguise.png",
+    "original": "assets/generated/phishing_lure_disguise.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 140x187",
+    "sha256": "ecd173bcaf1cb38b03453291c910009c97eb2ad1f3572b56a59c5ec403fe73dd"
+  },
+  {
+    "file": "assets/images/phishing_lure.png",
+    "original": "assets/generated/phishing_lure.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 140x187",
+    "sha256": "15bcb1b389b6ce51bd8ae251829b8b9b01fe4aac9210cc3a203cbb2fa4526eb0"
+  },
+  {
+    "file": "assets/images/mfa_bomber.png",
+    "original": "assets/generated/mfa_bomber.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 168x169",
+    "sha256": "6574319538af28d586b6ff54ef7eecc4debb404f93f78fb0f53127c0a81a7cd6"
+  },
+  {
+    "file": "assets/images/password_sprayer.png",
+    "original": "assets/generated/password_sprayer.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 156x216",
+    "sha256": "7c3243339bc8e413520dd9b74680afad833d910a4854b54f61fe93b217a91815"
+  },
+  {
+    "file": "assets/images/shoulder_surfer.png",
+    "original": "assets/generated/shoulder_surfer.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 168x168",
+    "sha256": "b0fe36a7880f5d27c832d8d2c775807bf7a99ad13888a9eb06e7b275d6aeebee"
+  },
+  {
+    "file": "assets/images/trojan_gift.png",
+    "original": "assets/generated/trojan_gift.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "checkerboard background and AI mark removed, trimmed, resized to 160x159",
+    "sha256": "73dd1e5708d8fb97d561ce06a8dce070322c7fa3b300e6631f2d3eefaa67be29"
+  },
+  {
+    "file": "assets/images/bg_title.jpg",
+    "original": "assets/generated/bg_title.jpg",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "bea6718bdf1df65d738c109629d0d9bfd41cc31f9f1c4202fc232ad7fdc8883b"
+  },
+  {
+    "file": "assets/images/bg_stage_1.jpg",
+    "original": "assets/generated/bg_stage_1.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "1023958bcafb11d474d5ea75b3721eba0eb3feb10252ac5c801236c105f98e80"
+  },
+  {
+    "file": "assets/images/bg_stage_2.jpg",
+    "original": "assets/generated/bg_stage_2.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "75ff9c79d23c8abc295bbcad37e64181e4b42cc22219efef1d4e7fc04c7ba476"
+  },
+  {
+    "file": "assets/images/bg_stage_3.jpg",
+    "original": "assets/generated/bg_stage_3.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "fb386100461ba0d471fcf78135283b0323c5e0d62188f4be296d9d527ee141a3"
+  },
+  {
+    "file": "assets/images/bg_result.jpg",
+    "original": "assets/generated/bg_result.webp",
+    "tool": "사용자 제공 생성형 AI 이미지(도구·모델명 확인 필요)",
+    "license": "생성형 AI 출력물. 사용한 도구의 이용 약관 확인 필요",
+    "edit": "cropped to 1900x1069 from the top left to drop the AI mark, resized to 1920x1080",
+    "sha256": "305cb565aba324173f7a6e3ce0051765a7ed767e1e5dd4b7440a1dba7866d5c5"
   }
 ]

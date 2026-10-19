@@ -5,9 +5,9 @@ from pathlib import Path
 import arcade
 from arcade.types import LBWH, LRBT
 
-from .assets import load_textures
-from .config import WIDTH, HEIGHT, FIELD
-from .engine import Engine
+from .assets import load_fonts, load_textures
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
+from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .rankings import Board, RankingWorker, participant_code
 
 INK = (7, 14, 24)
@@ -19,18 +19,23 @@ CYAN = (77, 221, 228)
 GOLD = (255, 195, 104)
 RED = (255, 109, 123)
 PURPLE = (194, 141, 255)
-FONT = ("Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")
+PINK = (255, 92, 170)
+YELLOW = (255, 214, 60)
+FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
+SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
 
 
 class GuardianWindow(arcade.Window):
-    def __init__(self, data_dir, *, fullscreen=False, practice=False, visible=True, automated=False):
+    def __init__(self, data_dir, *, fullscreen=False, practice=False, booth=False, visible=True, automated=False):
         super().__init__(1280, 720, "패스워드 가디언 · Password Guardian", resizable=True,
                          fullscreen=fullscreen, visible=visible, antialiasing=True, vsync=True,
                          update_rate=1/60, draw_rate=1/60)
         self.set_minimum_size(960, 540)
         self.automated = automated
+        self.booth = booth  # launched by the booth launcher: one game, then quit
         self.engine = Engine(practice=practice)
+        load_fonts()
         self.textures = load_textures()
         self.camera = arcade.Camera2D(window=self, position=(WIDTH/2, HEIGHT/2),
                                      projection=LRBT(-WIDTH/2, WIDTH/2, -HEIGHT/2, HEIGHT/2))
@@ -39,17 +44,20 @@ class GuardianWindow(arcade.Window):
         self.keys = set()
         self.control_keys = set()
         self.manual_paused = False
+        self.manual_pause_left = 0.0
         self.focus_paused = False
         self.resume_in = 0.0
         self.last_revision = self.engine.revision
         self.seen_result = None
         self.clock = 0.0
+        self.seen_attacks = set()  # attack kinds already introduced this game
+        self.banner, self.banner_left = None, 0.0
         self.board = Board((), 0, None)
         self.rank_status = "기록을 불러오는 중"
         self.worker = RankingWorker(Path(data_dir) / "rankings.sqlite3")
         self.jobs = []
         self.request_board()
-        self.sprite_maps = {name: {} for name in ("player", "enemies", "shots", "threats")}
+        self.sprite_maps = {name: {} for name in ("player", "enemies", "items", "shots", "threats")}
         self.sprite_lists = {name: arcade.SpriteList() for name in self.sprite_maps}
         self.closed_worker = False
         self.sync_sprites()
@@ -78,9 +86,14 @@ class GuardianWindow(arcade.Window):
     def on_activate(self):
         if getattr(self, "focus_paused", False):
             self.focus_paused = False
-            self.resume_in = 3.0
+            self.resume_in = 0.0 if self.manual_paused else 3.0
 
     def on_key_press(self, key, modifiers):
+        # Booth: Esc on the title screen or Shift+Esc at any time hands control back to the launcher.
+        # Esc and Shift work whatever the Korean/English input state is.
+        if self.booth and key == arcade.key.ESCAPE and (self.engine.state == "TITLE" or modifiers & arcade.key.MOD_SHIFT):
+            self.finish()
+            return
         if key in (arcade.key.F11, arcade.key.ESCAPE):
             if key in self.control_keys:
                 return
@@ -92,6 +105,7 @@ class GuardianWindow(arcade.Window):
         if key == arcade.key.ESCAPE and self.engine.state != "TITLE":
             if not self.focus_paused:
                 self.manual_paused = not self.manual_paused
+                self.manual_pause_left = MANUAL_PAUSE_SECONDS
                 self.resume_in = 0 if self.manual_paused else 3
                 self.keys.clear()
             return
@@ -119,7 +133,13 @@ class GuardianWindow(arcade.Window):
         self.keys.clear()
         self.labels.clear()
         self.last_revision = self.engine.revision
+        self.banner_left = 0.0
+        if self.engine.state == "TUTORIAL":
+            self.seen_attacks.clear()
         if self.engine.state == "TITLE":
+            if self.booth and self.engine.result:  # the result screen ran out: back to the launcher
+                self.finish()
+                return
             self.request_board()
 
     def request_board(self, result=None):
@@ -147,14 +167,29 @@ class GuardianWindow(arcade.Window):
     def on_update(self, delta_time):
         self.clock += delta_time
         self.poll_rankings()
-        if self.focus_paused or self.manual_paused:
+        if self.focus_paused:
+            return
+        if self.manual_paused:
+            # A visitor may pause and walk away; the session must still finish on its own.
+            self.manual_pause_left = max(0, self.manual_pause_left-delta_time)
+            if self.manual_pause_left > 0:
+                return
+            self.manual_paused = False
+            self.resume_in = 3.0
             return
         if self.resume_in > 0:
             self.resume_in = max(0, self.resume_in-delta_time)
             return
         movement = (int(arcade.key.RIGHT in self.keys)-int(arcade.key.LEFT in self.keys),
                     int(arcade.key.UP in self.keys)-int(arcade.key.DOWN in self.keys))
-        self.engine.update(delta_time, movement)
+        precise = arcade.key.LSHIFT in self.keys or arcade.key.RSHIFT in self.keys
+        self.engine.update(delta_time, movement, precise)
+        self.banner_left = max(0, self.banner_left-delta_time)
+        if self.engine.state == "COMBAT":
+            for enemy in self.engine.enemies:
+                if enemy.kind in self.engine.intros and enemy.kind not in self.seen_attacks:
+                    self.seen_attacks.add(enemy.kind)
+                    self.banner, self.banner_left = enemy.kind, 3.0
         if self.engine.result and self.seen_result != self.engine.result.session_id:
             self.seen_result = self.engine.result.session_id
             self.board = Board(self.board.rows, self.board.total, None)
@@ -167,9 +202,10 @@ class GuardianWindow(arcade.Window):
 
     def sync_sprites(self):
         e = self.engine
-        groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets}
-        widths = {"player": 88, "bot": 78, "drone": 108, "swarm": 58, "boss": 240,
-                  "player_bullet": 7, "round": 23, "wedge": 26}
+        groups = {"player": [e.player], "enemies": e.enemies, "shots": e.player_bullets, "threats": e.enemy_bullets,
+                  "items": e.items}
+        widths = {"player": 76, "bot": 30, "drone": 110, "swarm": 64, "boss": 200, "phish": 70,
+                  "keylogger": 72, "mfa": 84, "sprayer": 78, "surfer": 84, "gift": 80}  # bullets: drawn at size
         for group, entities in groups.items():
             mapping = self.sprite_maps[group]
             live = {entity.id for entity in entities}
@@ -178,22 +214,28 @@ class GuardianWindow(arcade.Window):
                     mapping.pop(entity_id).remove_from_sprite_lists()
             for entity in entities:
                 sprite = mapping.get(entity.id)
+                disguised = entity.kind == "phish" and entity.age < PHISH_REVEAL
+                texture = self.textures["phish_disguise" if disguised else entity.kind]
                 if sprite is None:
-                    texture = self.textures[entity.kind]
-                    sprite = arcade.Sprite(texture, scale=widths[entity.kind]/texture.width)
+                    sprite = arcade.Sprite(texture, scale=widths.get(entity.kind, texture.width)/texture.width)
+                    if entity.kind == "keylogger":
+                        sprite.alpha = 205  # a shadow that is still easy to spot
                     self.sprite_lists[group].append(sprite)
                     mapping[entity.id] = sprite
+                elif sprite.texture is not texture:  # a phishing lure drops its disguise
+                    sprite.texture = texture
                 sprite.position = entity.x, entity.y
-                if entity.kind == "wedge":
-                    sprite.angle = math.degrees(math.atan2(entity.vy, entity.vx))-90
                 if group == "player":
                     sprite.alpha = 100 if e.invulnerable and int(e.invulnerable*10)%2 else 255
 
-    def txt(self, key, text, x, y, size=24, color=WHITE, *, width=None, bold=False, anchor="left"):
+    def txt(self, key, text, x, y, size=24, color=WHITE, *, width=None, bold=False, anchor="left", leading=1.3):
         label = self.labels.get(key)
         if label is None:
             label = arcade.Text(str(text), x, y, color, size, font_name=FONT, bold=bold,
                                 anchor_x=anchor, anchor_y="top", width=width, multiline=width is not None)
+            if width is not None:
+                # Fixed baseline distance (multiple of font size) keeps wrapped text independent of font metrics.
+                label.label.set_style("line_spacing", f"{size*leading:.1f}pt")
             self.labels[key] = label
         else:
             if label.text != str(text):
@@ -218,19 +260,13 @@ class GuardianWindow(arcade.Window):
         arcade.draw_texture_rect(texture, LBWH(x-w/2, y-h/2, w, h), alpha=alpha)
 
     def background(self):
-        self.image("vault", 960, 540, 1920, 1080)
         state = self.engine.state
+        key = {"TITLE": "bg_title", "RESULT": "bg_result", "TUTORIAL": "bg_stage_1"}.get(state, f"bg_stage_{self.engine.stage+1}")
+        self.image(key, 960, 540, 1920, 1080)
         if state in ("TITLE", "RESULT"):
-            arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (5, 13, 23, 110))
+            arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (5, 13, 23, SCREEN_SHADE))
         else:
-            self.panel(65, 110, 1430, 815, fill=(7, 17, 28, 160), edge=(26, 60, 75))
-            cx, cy = 780, 515
-            color = [(23, 63, 73), (51, 35, 69), (64, 35, 45)][self.engine.stage]
-            for radius in (150, 195, 280):
-                arcade.draw_circle_outline(cx, cy, radius, color, 2)
-            for x in (120, 1435):
-                for y in range(180, 900, 95):
-                    arcade.draw_lbwh_rectangle_filled(x, y, 5, 40, color)
+            self.panel(65, 110, 1430, 815, fill=(7, 17, 28, FIELD_SHADE), edge=(26, 60, 75))
 
     def on_draw(self):
         self.clear(INK)
@@ -253,28 +289,30 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_filled(0, 0, WIDTH, HEIGHT, (4, 10, 19, 220))
             label = f"{math.ceil(self.resume_in)}초 후 다시 시작" if self.resume_in > 0 else "잠시 쉬어가요"
             self.txt("pause-title", label, 960, 620, 48, anchor="center", bold=True)
-            detail = "게임 창으로 돌아오면 계속됩니다" if self.focus_paused else "Esc 키로 이어서 플레이"
+            detail = ("게임 창으로 돌아오면 계속됩니다" if self.focus_paused
+                      else f"Esc 키로 이어서 플레이  ·  {math.ceil(self.manual_pause_left)}초 후 자동 재개")
             if self.resume_in > 0:
                 detail = "이동 키를 준비하세요"
             self.txt("pause-detail", detail, 960, 530, 25, MUTED, anchor="center")
+            if self.booth:
+                self.txt("pause-quit", "운영진: Shift + Esc 게임 끝내기", 960, 460, 20, MUTED, anchor="center")
 
     def draw_title(self):
         self.txt("eyebrow", "DIGITAL SECURITY / INTERACTIVE MISSION", 100, 983, 18, CYAN)
-        self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True)
+        self.txt("title", "패스워드\n가디언", 94, 908, 76, width=850, bold=True, leading=1.1)
         self.txt("subtitle", "계정을 노리는 공격으로부터\n디지털 금고를 지켜라!", 102, 654, 30, MUTED, width=800)
-        self.image("player", 895, 649 + math.sin(self.clock*1.5)*8, 270)
-        arcade.draw_circle_outline(895, 652, 188, (40, 115, 134), 2)
-        arcade.draw_circle_outline(895, 652, 213, (25, 55, 72), 1)
+        self.image("player", 1010, 625 + math.sin(self.clock*1.5)*8, 190)  # in front of the vault door
         self.panel(100, 358, 1010, 125)
         self.txt("start-key", "ENTER", 140, 445, 33, CYAN, bold=True)
         self.txt("start-label", "보안 수호 임무 시작", 330, 447, 29, bold=True)
         self.txt("start-time", "1인 플레이   /   약 4분   /   끝까지 체험 가능", 330, 399, 19, MUTED)
-        for i, (key, action) in enumerate((("방향키", "이동"), ("자동", "발사"), ("SPACE", "방어 스킬"), ("1 · 2", "보안 선택"))):
-            x = 104+i*260
+        for i, (key, action) in enumerate((("방향키", "이동"), ("SHIFT", "정밀 이동"), ("자동", "발사"), ("SPACE", "방어 스킬"), ("1 · 2", "보안 선택"))):
+            x = 104+i*215
             self.txt(f"control-key{i}", key, x, 297, 25, CYAN, bold=True)
             self.txt(f"control-label{i}", action, x, 251, 20, MUTED)
         self.txt("title-learning", "길게 만들고 · 다르게 쓰고 · 한 번 더 확인하세요", 100, 154, 23, WHITE)
-        self.txt("footer", "F11 전체 화면    ·    Esc 일시정지    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
+        keys = "Esc 끝내기" if self.booth else "F11 전체 화면    ·    Esc 일시정지"
+        self.txt("footer", f"{keys}    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
         self.draw_board(1200, 160, 620, 815)
 
     def draw_board(self, x, y, w, h, *, result=False):
@@ -299,6 +337,17 @@ class GuardianWindow(arcade.Window):
         self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 등록", x+30, y+81, 15, MUTED)
         self.txt("board-total", f"총 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
 
+    def sight(self, enemy):
+        reach, steps = 900, 8
+        points = [(enemy.x, enemy.y)]
+        for k in range(steps+1):
+            a = enemy.aim - SIGHT_HALF + 2*SIGHT_HALF*k/steps
+            points.append((enemy.x + math.cos(a)*reach, enemy.y + math.sin(a)*reach))
+        heat = min(1, enemy.watch/SIGHT_STARE)
+        arcade.draw_polygon_filled(points, (*YELLOW, int(22 + 40*heat)))
+        for edge in (points[1], points[-1]):
+            arcade.draw_line(enemy.x, enemy.y, *edge, (*YELLOW, int(70 + 90*heat)), 2)
+
     def draw_game(self):
         e, s = self.engine, self.engine.session
         self.panel(65, 947, 1790, 89)
@@ -313,8 +362,14 @@ class GuardianWindow(arcade.Window):
         previous_scissor = self.ctx.scissor
         self.ctx.scissor = (round(viewport.left+65*scale), round(viewport.bottom+110*scale),
                             round(1430*scale), round(815*scale))
-        for group in ("enemies", "shots", "threats", "player"):
+        for enemy in e.enemies:  # view cones go under everything, faint enough not to hide bullets
+            if enemy.kind == "surfer" and enemy.vy == 0:
+                self.sight(enemy)
+        for group in ("enemies", "items", "shots", "threats", "player"):
             self.sprite_lists[group].draw()
+        if e.precise:  # show the real hit point while moving precisely
+            arcade.draw_circle_filled(e.player.x, e.player.y, e.player.radius+2, (*RED, 230))
+            arcade.draw_circle_filled(e.player.x, e.player.y, e.player.radius-2, WHITE)
         if s.shield or e.invulnerable:
             arcade.draw_circle_outline(e.player.x, e.player.y, 52, CYAN if s.shield else GOLD, 2)
         if e.skill_flash:
@@ -324,16 +379,35 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_outline(65, 110, 1430, 815, (*RED, int(e.damage_flash/0.25*220)), 5)
         self.ctx.scissor = previous_scissor
         for enemy in e.enemies:
-            if enemy.age < 0.8:
+            if enemy.age < 0.8 and enemy.kind != "phish":  # a lure arrives looking friendly
                 arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+18, GOLD, 2)
+            if enemy.kind == "phish" and PHISH_REVEAL <= enemy.age < PHISH_REVEAL+0.3:
+                arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+24, PINK, 3)
+                self.txt(f"fake-{enemy.id}", "가짜!", enemy.x, enemy.y+enemy.radius+62, 22, PINK, bold=True, anchor="center")
+            if enemy.kind == "surfer" and enemy.warn > 0:  # lens blink before the shot
+                arcade.draw_circle_filled(enemy.x, enemy.y, 16, (*YELLOW, 230))
+                arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+14, YELLOW, 3)
+            if enemy.kind == "gift":
+                opens_in = min((enemy.y-GIFT_OPEN_Y)/-enemy.vy if enemy.vy else 0, GIFT_OPEN_AGE-enemy.age)
+                if opens_in < 1.5 and int(opens_in*6) % 2 == 0:  # about to burst open
+                    arcade.draw_circle_outline(enemy.x, enemy.y, enemy.radius+16, RED, 3)
             if enemy.kind == "boss":
                 self.panel(505, 865, 550, 31, fill=(35, 18, 31, 240), edge=(90, 48, 60))
-                arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/100, 19, RED)
+                arcade.draw_lbwh_rectangle_filled(511, 871, 538*max(0, enemy.hp)/ENEMY_STATS["boss"][0], 19, RED)
                 self.txt("boss-name", "침입자", 780, 937, 22, RED, anchor="center")
                 if enemy.age % 8 < 0.6:
                     self.txt("boss-warning", "공격 패턴 전환", 780, 845, 26, GOLD, anchor="center")
+        for i, (kind, x, y, left) in enumerate(e.notices[:4]):
+            self.txt(f"notice-{i}", ITEM_NOTICES[kind], x, y, 19, (*GOLD, int(255*min(1, left/0.4))), bold=True, anchor="center")
+        if e.firewall:
+            arcade.draw_lbwh_rectangle_outline(68, 113, 1424, 809, (255, 150, 60, 150), 3)
+        if self.banner_left and e.state == "COMBAT":
+            intro = e.intros[self.banner]
+            self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))
+            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
+            self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
         self.draw_sidebar()
-        self.txt("game-footer", "방향키 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
+        self.txt("game-footer", "방향키 이동     SHIFT 정밀 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")
 
     def draw_sidebar(self):
@@ -347,20 +421,20 @@ class GuardianWindow(arcade.Window):
         self.txt("health-label", f"체력  {s.hp} / 3", x, 733, 20, WHITE)
         self.txt("shield-label", f"보호막       {s.shield}", x, 678, 22, CYAN)
         self.txt("skill-label", f"방어 스킬    {s.skills}", x, 626, 22, GOLD)
-        self.txt("damage-label", f"공격력       ×{s.damage}", x, 574, 22, WHITE)
+        self.txt("damage-label", f"공격력   Lv.{s.weapon}  ×{s.damage}", x, 574, 22, WHITE)
         self.txt("kills-label", f"적 처치      {s.enemy_kills}", x, 510, 20, MUTED)
         self.txt("revive-label", f"부활         {s.revive_count}", x, 466, 20, MUTED)
         arcade.draw_line(x, 420, 1820, 420, EDGE, 2)
         self.txt("tip-label", "오늘의 보안 습관", x, 392, 21, CYAN, bold=True)
         self.txt("tip-body", e.questions[e.stage]["short"], x, 345, 25, WHITE, width=270)
-        self.txt("tip-foot", "체력이 없어져도 다시 부활해요. 끝까지 도전해 보세요!", x, 247, 18, MUTED, width=266)
+        self.txt("tip-foot", "체력이 없어져도 다시 부활해요. 끝까지 도전해 보세요!", x, 229, 18, MUTED, width=266)
 
     def draw_tutorial(self):
-        self.panel(295, 566, 970, 285, fill=(10, 27, 41, 245), edge=(55, 126, 140))
+        self.panel(295, 546, 970, 305, fill=(10, 27, 41, 245), edge=(55, 126, 140))
         self.txt("tutorial-tag", f"조작 연습  ·  {math.ceil(self.engine.remaining)}초 후 시작", 335, 814, 23, CYAN)
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
-        self.txt("tutorial-body", "방향키로 이동하면 탄환은 자동으로 발사됩니다.\nSpace로 주변 탄환을 지워 보세요. 연습 기록은 저장되지 않아요.", 335, 691, 22, MUTED, width=890)
-        self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 610, 18, MUTED)
+        self.txt("tutorial-body", "방향키로 움직이면 자동 발사돼요. Shift를 누르면 천천히 움직이고\n맞는 곳(빨간 점)이 보여요. Space는 주변 탄환을 지워요.", 335, 691, 22, MUTED, width=890)
+        self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
 
     def draw_choice(self):
         e = self.engine
@@ -398,22 +472,23 @@ class GuardianWindow(arcade.Window):
         self.txt("result-score", f"{result.score:,}", 120, 746, 83, WHITE, bold=True)
         self.txt("result-grade", result.grade, 1055, 768, 89, CYAN, bold=True, anchor="right")
         self.txt("result-grade-caption", "게임 성과 등급", 1063, 628, 18, MUTED, anchor="right")
+        self.panel(90, 248, 1045, 328, fill=(13, 27, 42, 215))  # keeps the lines readable over the hologram
         summary = f"일반 적 {result.enemy_kills}기 처치   ·   부활 {result.revive_count}회   ·   보스 {'처치' if result.boss_defeated else '시간 방어 완료'}"
-        self.txt("result-stats", summary, 93, 558, 23, WHITE)
+        self.txt("result-stats", summary, 125, 558, 23, WHITE)
         own = self.board.own
         if result.eligible and own and own["session_id"] == result.session_id:
             rank_message = f"{participant_code(own['id'])}   /   이번 기록 {own['rank']}위 · 총 {self.board.total}개"
         else:
             rank_message = self.rank_status
-        self.txt("result-rank", rank_message, 93, 508, 23, CYAN)
+        self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
         for i, record in enumerate(result.choices):
             y = 432-i*62
             label = "정답" if record.correct else "미선택" if record.selection is None else "다시 기억해요"
-            self.txt(f"result-choice-num{i}", f"0{i+1}", 95, y, 23, CYAN)
-            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 161, y, 24, WHITE)
+            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 23, CYAN)
+            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
             self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
         self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
-        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 시작 화면으로 돌아갑니다", 94, 114, 24, CYAN)
+        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 {'게임이 끝납니다' if self.booth else '시작 화면으로 돌아갑니다'}", 94, 114, 24, CYAN)
         self.txt("result-disclaimer", "등급은 실제 보안 진단이 아닙니다. 탄막과 강화는 학습을 위한 비유입니다.", 94, 63, 16, MUTED)
         self.draw_board(1200, 130, 620, 815, result=True)
 
@@ -422,6 +497,14 @@ class GuardianWindow(arcade.Window):
             self.worker.close()
             self.closed_worker = True
         super().on_close()
+
+    def finish(self):
+        for _, future in list(self.jobs):  # let the last result reach the ranking file
+            try:
+                future.result(timeout=5)
+            except Exception:
+                pass
+        self.shutdown()
 
     def shutdown(self):
         if not self.closed_worker:

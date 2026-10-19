@@ -9,7 +9,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 import arcade
-from password_guardian.app import GuardianWindow
+import pyglet
+from password_guardian.app import FONT, GuardianWindow
+from password_guardian.config import MANUAL_PAUSE_SECONDS
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
 
@@ -25,6 +27,9 @@ def main():
         try:
             window.switch_to()
             report["gpu"] = window.ctx.info.RENDERER
+            # The bundled Korean font must win over system fallbacks.
+            report["font"] = pyglet.font.load(FONT).name
+            assert report["font"] == "IBM Plex Sans KR"
 
             def capture(name):
                 window.sync_sprites()
@@ -60,6 +65,15 @@ def main():
                     window.on_key_release(arcade.key.ESCAPE, 0)
                     window.on_update(3)
                     assert window.engine.elapsed == before
+                    # An abandoned Esc pause resumes by itself after the 3-second notice.
+                    window.on_key_press(arcade.key.ESCAPE, 0)
+                    window.on_key_release(arcade.key.ESCAPE, 0)
+                    window.on_update(MANUAL_PAUSE_SECONDS-1)
+                    assert window.manual_paused and window.engine.elapsed == before
+                    window.on_update(1)
+                    assert not window.manual_paused and window.resume_in == 3
+                    window.on_update(3)
+                    assert window.engine.elapsed == before and not window.paused
                     window.automated = False
                     window.on_key_press(arcade.key.RIGHT, 0)
                     window.on_deactivate()
@@ -100,6 +114,13 @@ def main():
                 report["cycles"].append({"score": window.engine.result.score,
                                           "revives": window.engine.result.revive_count,
                                           "rank": window.board.own["rank"]})
+                if cycle == 0:
+                    # Paused on the result screen and left alone: still returns to the title.
+                    window.on_key_press(arcade.key.ESCAPE, 0)
+                    window.on_key_release(arcade.key.ESCAPE, 0)
+                    window.on_update(MANUAL_PAUSE_SECONDS)
+                    window.on_update(3)
+                assert window.engine.state == "RESULT"
                 window.on_update(40)
                 assert window.engine.state == "TITLE"
                 assert all(len(window.sprite_lists[n]) == 0 for n in ("enemies", "shots", "threats"))
@@ -114,7 +135,7 @@ def main():
             window.engine.enemies.clear()
             for _ in range(20):
                 window.engine.spawn_enemy("drone")
-            window.engine.enemy_bullets = [Entity(100000+i, "round" if i%2 else "wedge",
+            window.engine.enemy_bullets = [Entity(100000+i, "guess" if i%2 else "dict",
                 130+(i%25)*50, 350+(i//25)*45, 8, vy=-150, ttl=12) for i in range(250)]
             window.sync_sprites()
             timings = []
@@ -130,9 +151,31 @@ def main():
             window.dispatch_events()
             window.fit_camera()
             capture("letterbox_4_3")
-            report["checks"] = ["10 complete 240-second simulated sessions", "correct/wrong/missing choices",
+            # Booth launcher mode: Esc on the title or Shift+Esc mid-game quits; a finished game quits by itself
+            # after its result is saved.
+            for quit_how in ("title-esc", "shift-esc", "finished"):
+                booth = GuardianWindow(data, visible=False, automated=True, booth=True)
+                booth.switch_to()
+                if quit_how == "title-esc":
+                    booth.on_key_press(arcade.key.ESCAPE, 0)
+                else:
+                    booth.on_key_press(arcade.key.ENTER, 0)
+                    booth.on_key_release(arcade.key.ENTER, 0)
+                    if quit_how == "shift-esc":
+                        booth.on_update(5)
+                        booth.on_key_press(arcade.key.ESCAPE, arcade.key.MOD_SHIFT)
+                    else:
+                        saved = RankingRepository(data/"rankings.sqlite3").board().total
+                        for _ in range(int(240/0.5) + 2):
+                            if booth.closed_worker:
+                                break
+                            booth.on_update(0.5)
+                        assert RankingRepository(data/"rankings.sqlite3").board().total == saved + 1
+                assert booth.closed_worker, quit_how
+            window.switch_to()
+            report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
-                                "pause and focus recovery", "stage cleanup", "4:3 letterbox", "OpenGL render"]
+                                "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:
             window.worker.executor.shutdown(wait=True)
             window.shutdown()

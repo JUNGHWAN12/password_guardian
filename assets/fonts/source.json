@@ -1,0 +1,19 @@
+{
+  "family": "IBM Plex Sans KR",
+  "author": "IBM Corp.",
+  "license": "OFL-1.1",
+  "reserved_font_name": "Plex",
+  "license_file": "assets/fonts/LICENSE.txt",
+  "project": "https://github.com/IBM/plex",
+  "release": "@ibm/plex-sans-kr@1.1.0",
+  "download": "https://github.com/IBM/plex/releases/download/%40ibm%2Fplex-sans-kr%401.1.0/ibm-plex-sans-kr.zip",
+  "download_sha256": "9837800c8e5aedf4123775e1d767afa482c983321bd2fc606c985f405d24562e",
+  "retrieved": "2026-10-12",
+  "files": [
+    {"file": "assets/fonts/IBMPlexSansKR-Regular.ttf", "original": "ibm-plex-sans-kr/fonts/complete/ttf/hinted/IBMPlexSansKR-Regular.ttf",
+     "edit": "unchanged", "sha256": "193af4c0c4f979251edd13708ea4c3eb4d0d07f9352b3d2a58b43b042767183b"},
+    {"file": "assets/fonts/IBMPlexSansKR-Bold.ttf", "original": "ibm-plex-sans-kr/fonts/complete/ttf/hinted/IBMPlexSansKR-Bold.ttf",
+     "edit": "unchanged", "sha256": "2aa49909a6dae0591efa1cc892bf99a2556b3b56fbcb639439240010518548ae"},
+    {"file": "assets/fonts/LICENSE.txt", "original": "ibm-plex-sans-kr/fonts/complete/ttf/hinted/license.txt", "edit": "unchanged"}
+  ]
+}

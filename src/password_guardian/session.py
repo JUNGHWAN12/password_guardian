@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from .config import RULESET
 
+WEAPON_MAX = 4
+
 
 @dataclass(frozen=True)
 class ChoiceRecord:
@@ -29,7 +31,8 @@ class Result:
 
 
 def grade_for(score):
-    return "S" if score >= 2000 else "A" if score >= 1400 else "B" if score >= 800 else "C"
+    # Set from simulated runs after the density change: standing still ~1,000-4,700, steady movement 4,000-8,800.
+    return "S" if score >= 6500 else "A" if score >= 4500 else "B" if score >= 2500 else "C"
 
 
 @dataclass
@@ -39,6 +42,7 @@ class Session:
     hp: int = 3
     shield: int = 0
     damage: int = 1
+    weapon: int = 1  # firing pattern level, 1 to WEAPON_MAX; kept after hits
     skills: int = 3
     revive_count: int = 0
     enemy_kills: int = 0
@@ -63,6 +67,12 @@ class Session:
                 self.damage = 2
             else:
                 self.skills += 2
+        return True
+
+    def power_up(self):
+        if self.frozen or self.weapon >= WEAPON_MAX:
+            return False
+        self.weapon += 1
         return True
 
     def finish(self, eligible=True):

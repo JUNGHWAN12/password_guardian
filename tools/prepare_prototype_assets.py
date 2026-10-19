@@ -1,4 +1,7 @@
-"""Prepare only the selected CC0 sprites; keep downloaded originals intact."""
+"""Prepare the remaining Kenney-based prototype assets; keep downloaded originals intact.
+
+Ships and backgrounds now come from tools/prepare_generated_assets.py; the game no longer uses these files.
+"""
 from pathlib import Path
 import hashlib
 import json
@@ -12,10 +15,9 @@ TARGET = ROOT / "assets/images"
 
 def prepare():
     TARGET.mkdir(parents=True, exist_ok=True)
-    targets = {"player": None, "guess_bot": (255, 154, 48),
-               "dictionary_drone": (188, 91, 245), "leaked_swarm": (255, 163, 55),
-               "intruder": None, "player_bullet": None}
-    records = []
+    targets = {"player_bullet": None}
+    records = [r for r in json.loads((TARGET / "sources.json").read_text(encoding="utf-8"))
+               if r["file"] not in ("assets/images/player_bullet.png", "assets/images/vault.png")]
     selected = json.loads((SOURCE / "selection.json").read_text(encoding="utf-8"))
     for name, tint in targets.items():
         src = SOURCE / f"{name}.png"
@@ -41,7 +43,7 @@ def prepare():
     records.append({"file": "assets/images/vault.png", "original": "assets/candidates/review/digital_vault_background_proposal.png",
                     "edit": "prototype composite, see ASSET_MANIFEST.md", "license": "Kenney base tile CC0 + project geometry"})
     (TARGET / "sources.json").write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Prepared {len(records)} prototype assets.")
+    print(f"Prepared {len(targets) + 1} prototype assets.")
 
 
 if __name__ == "__main__":
