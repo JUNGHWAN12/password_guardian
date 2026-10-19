@@ -6,11 +6,15 @@ root = Path(SPECPATH)
 datas = [(str(root / "assets/images"), "assets/images"), (str(root / "assets/fonts"), "assets/fonts"),
          (str(root / "data"), "data"), (str(root / "assets/LICENSES.md"), "assets")]
 
-a = Analysis([str(root / "run_game.py")], pathex=[str(root / "src")], datas=datas)
+# noarchive / append_pkg=False: keep Python code out of the .exe. Otherwise PyInstaller re-opens the .exe from Python
+# to read modules, and on booth laptops antivirus blocked that read: "[Errno 13] Permission denied: ...\*.exe"
+# (seen with Data Packet Runner on 2026-10-19; Clean Data Labeler already builds with noarchive).
+a = Analysis([str(root / "run_game.py")], pathex=[str(root / "src")], datas=datas, noarchive=True)
 # Arcade's hook files VERSION as a folder (arcade/VERSION/VERSION); arcade reads it as a file.
 a.datas = [("arcade/VERSION", src, kind) if dest.replace("\\", "/") == "arcade/VERSION/VERSION" else (dest, src, kind)
            for dest, src, kind in a.datas]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="PasswordGuardian",
-          console=False)  # no black console window next to the game
+          console=False,  # no black console window next to the game
+          append_pkg=False)  # package archive beside the exe (PasswordGuardian.pkg), not appended to it
 coll = COLLECT(exe, a.binaries, a.datas, name="PasswordGuardian")
