@@ -5,3 +5,5 @@ __pycache__/
 runtime/
 *.sqlite3
 *.sqlite3-*
+build/
+dist/

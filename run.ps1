@@ -1,7 +1,9 @@
 ﻿param(
     [switch]$Fullscreen,
     [switch]$Practice,
-    [string]$DataDir = ""
+    [string]$DataDir = "",
+    [switch]$Booth,
+    [switch]$SetupOnly  # prepare .venv and stop; used by build_exe.bat
 )
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
@@ -33,9 +35,9 @@ function Find-Python {
 
 function Install-Requirements($python) {
     if ($uv) {
-        & $uv.Source pip install --python $python -r (Join-Path $root 'requirements.txt')
+        & $uv.Source pip install --python $python -r (Join-Path $root 'requirements.txt') | Out-Host
     } else {
-        & $python -m pip install --disable-pip-version-check -r (Join-Path $root 'requirements.txt')
+        & $python -m pip install --disable-pip-version-check -r (Join-Path $root 'requirements.txt') | Out-Host
     }
     return $LASTEXITCODE -eq 0
 }
@@ -45,7 +47,7 @@ $python = Get-VenvPython
 if (-not $python -and $uv) {
     # uv-managed Pythons are not on PATH as "python"; uv finds one, or downloads it, by itself.
     Write-Host "처음 실행이라 uv로 게임 실행 환경(.venv)을 만듭니다. 1~2분 걸릴 수 있어요..."
-    & $uv.Source venv --python 3.13 $venv  # downloads Python 3.13 when the PC does not have it
+    & $uv.Source venv --python 3.13 $venv | Out-Host  # downloads Python 3.13 when the PC does not have it
     if ($LASTEXITCODE -ne 0) { Write-Host "uv로 실행 환경을 만들지 못했습니다." -ForegroundColor Red; exit 1 }
     $python = Get-VenvPython
     if (-not (Install-Requirements $python)) {
@@ -65,7 +67,7 @@ if (-not $python) {
         exit 1
     }
     Write-Host "처음 실행이라 게임 실행 환경(.venv)을 만듭니다. 1~2분 걸릴 수 있어요..."
-    & $system.Exe @($system.Args) -m venv $venv
+    & $system.Exe @($system.Args) -m venv $venv | Out-Host
     if ($LASTEXITCODE -ne 0) { Write-Host "실행 환경을 만들지 못했습니다." -ForegroundColor Red; exit 1 }
     $python = Get-VenvPython
     if (-not (Install-Requirements $python)) {
@@ -74,9 +76,11 @@ if (-not $python) {
         exit 1
     }
 }
+if ($SetupOnly) { Write-Output $python; exit 0 }
 $taskArgs = @((Join-Path $root 'run_game.py'))
 if ($Fullscreen) { $taskArgs += '--fullscreen' }
 if ($Practice) { $taskArgs += '--practice' }
+if ($Booth) { $taskArgs += '--booth' }
 if ($DataDir) { $taskArgs += @('--data-dir', $DataDir) }
 & $python @taskArgs
 exit $LASTEXITCODE
