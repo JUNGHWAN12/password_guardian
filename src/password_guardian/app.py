@@ -22,6 +22,7 @@ PURPLE = (194, 141, 255)
 PINK = (255, 92, 170)
 YELLOW = (255, 214, 60)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
+STARTUP_RESTORE_SECONDS = 5.0  # booth: undo a minimized start during the first seconds
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
 
@@ -71,6 +72,21 @@ class GuardianWindow(arcade.Window):
         super().on_resize(width, height)
         if hasattr(self, "camera"):
             self.fit_camera()
+
+    def restore_if_minimized(self):
+        """Windows can start a fullscreen window minimized when another program (the booth launcher)
+        holds the foreground. During the first seconds, bring it back and to the front."""
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            hwnd = self._hwnd
+            if user32.IsIconic(hwnd):
+                user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                user32.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
 
     @property
     def paused(self):
@@ -166,6 +182,8 @@ class GuardianWindow(arcade.Window):
 
     def on_update(self, delta_time):
         self.clock += delta_time
+        if self.clock < STARTUP_RESTORE_SECONDS and self.fullscreen and not self.automated:
+            self.restore_if_minimized()
         self.poll_rankings()
         if self.focus_paused:
             return

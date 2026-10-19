@@ -46,7 +46,7 @@ python -m venv .venv
 
 ## 부스 런처용 실행 파일(.exe)
 
-Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**하면 `dist\PasswordGuardian\PasswordGuardian.exe`(옆의 `_internal` 폴더와 함께 사용)와 `dist\PasswordGuardian.zip`이 만들어집니다. 처음에는 인터넷이 필요합니다. 런처에서는 `--booth --fullscreen`으로 실행합니다. `--booth`는 한 판이 끝나면(결과 화면 뒤) 스스로 종료하고, 시작 화면의 `Esc`와 운영진용 `Shift + Esc`로도 종료합니다. 오류로 꺼지면 종료 코드 1과 함께 데이터 폴더의 `error.log`에 내용을 남깁니다. 런처 담당자에게 전달할 내용은 [부스 런처 제출 정보](docs/부스_런처_제출정보.md)에 정리했습니다.
+Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**하면 `dist\PasswordGuardian\PasswordGuardian.exe`(옆의 `PasswordGuardian.pkg` 파일, `_internal` 폴더와 함께 사용 — 백신이 실행 파일 읽기를 막아도 켜지도록 코드를 `.exe` 밖에 둡니다)와 `dist\PasswordGuardian.zip`이 만들어집니다. 처음에는 인터넷이 필요합니다. 런처에서는 `--booth --fullscreen`으로 실행합니다. `--booth`는 한 판이 끝나면(결과 화면 뒤) 스스로 종료하고, 시작 화면의 `Esc`와 운영진용 `Shift + Esc`로도 종료합니다. 오류로 꺼지면 종료 코드 1과 함께 데이터 폴더의 `error.log`에 내용을 남깁니다. 런처 담당자에게 전달할 내용은 [부스 런처 제출 정보](docs/부스_런처_제출정보.md)에 정리했습니다.
 
 ## 구현된 플레이
 
