@@ -1,6 +1,8 @@
 from pathlib import Path
+import sys
 
-ROOT = Path(__file__).resolve().parents[2]
+# A PyInstaller build unpacks assets and data beside the modules, in sys._MEIPASS.
+ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
 WIDTH, HEIGHT = 1920, 1080
 RULESET = "prototype-2"  # bump whenever enemies, scoring or hitboxes change
 FIELD = (90, 1470, 135, 910)  # left, right, bottom, top

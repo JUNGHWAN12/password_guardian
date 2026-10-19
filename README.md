@@ -19,6 +19,7 @@ python run_game.py
 | Esc | 일시정지 / 재개, 재개 전 3초 안내. 30초가 지나면 자동 재개 |
 | F11 | 전체 화면 전환 |
 | 창 닫기 / Alt+F4 | 프로그램 종료 |
+| Esc(시작 화면) · Shift+Esc | `--booth`로 실행했을 때 게임 종료 |
 
 ```powershell
 python run_game.py --fullscreen
@@ -40,7 +41,11 @@ python -m venv .venv
 
 첫 의존성 설치에는 인터넷이 필요합니다. 설치 후 플레이와 랭킹은 인터넷 없이 동작합니다. `start_game.bat`(`run.ps1`)는 `.venv`가 있으면 그 Python을 씁니다. 없으면 처음 실행할 때 `.venv`를 직접 만듭니다: uv가 있으면 `uv venv --python 3.13`(필요하면 Python 3.13을 내려받음), 없으면 PATH의 Python 3.11~3.13으로 만들고 `requirements.txt`를 설치합니다. Arcade 3.3.3이 쓰는 pymunk 6.9.0은 Python 3.14용 설치 파일이 없으므로 3.13 이하를 쓰세요. 이미지·글꼴 경로는 실행 파일 위치를 기준으로 하므로 다른 폴더에서 실행해도 됩니다.
 
-`src/`, `data/`, `assets/images/`, `assets/fonts/`, 실행 파일과 라이선스 문서를 함께 옮겨야 합니다. 한글은 함께 포함한 IBM Plex Sans KR 글꼴(SIL OFL 1.1)로 표시하므로 PC에 글꼴을 따로 설치하지 않아도 됩니다. EXE 패키징은 후속 작업입니다.
+`src/`, `data/`, `assets/images/`, `assets/fonts/`, 실행 파일과 라이선스 문서를 함께 옮겨야 합니다. 한글은 함께 포함한 IBM Plex Sans KR 글꼴(SIL OFL 1.1)로 표시하므로 PC에 글꼴을 따로 설치하지 않아도 됩니다.
+
+## 부스 런처용 실행 파일(.exe)
+
+Python이 없는 부스 노트북용으로 **`build_exe.bat`를 더블클릭**하면 `dist\PasswordGuardian\PasswordGuardian.exe`(옆의 `_internal` 폴더와 함께 사용)와 `dist\PasswordGuardian.zip`이 만들어집니다. 처음에는 인터넷이 필요합니다. 런처에서는 `--booth --fullscreen`으로 실행합니다. `--booth`는 한 판이 끝나면(결과 화면 뒤) 스스로 종료하고, 시작 화면의 `Esc`와 운영진용 `Shift + Esc`로도 종료합니다. 오류로 꺼지면 종료 코드 1과 함께 데이터 폴더의 `error.log`에 내용을 남깁니다. 런처 담당자에게 전달할 내용은 [부스 런처 제출 정보](docs/부스_런처_제출정보.md)에 정리했습니다.
 
 ## 구현된 플레이
 
