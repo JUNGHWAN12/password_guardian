@@ -151,7 +151,29 @@ def main():
             window.dispatch_events()
             window.fit_camera()
             capture("letterbox_4_3")
-            report["checks"] = ["10 complete 240-second simulated sessions", "correct/wrong/missing choices",
+            # Booth launcher mode: Esc on the title or Shift+Esc mid-game quits; a finished game quits by itself
+            # after its result is saved.
+            for quit_how in ("title-esc", "shift-esc", "finished"):
+                booth = GuardianWindow(data, visible=False, automated=True, booth=True)
+                booth.switch_to()
+                if quit_how == "title-esc":
+                    booth.on_key_press(arcade.key.ESCAPE, 0)
+                else:
+                    booth.on_key_press(arcade.key.ENTER, 0)
+                    booth.on_key_release(arcade.key.ENTER, 0)
+                    if quit_how == "shift-esc":
+                        booth.on_update(5)
+                        booth.on_key_press(arcade.key.ESCAPE, arcade.key.MOD_SHIFT)
+                    else:
+                        saved = RankingRepository(data/"rankings.sqlite3").board().total
+                        for _ in range(int(240/0.5) + 2):
+                            if booth.closed_worker:
+                                break
+                            booth.on_update(0.5)
+                        assert RankingRepository(data/"rankings.sqlite3").board().total == saved + 1
+                assert booth.closed_worker, quit_how
+            window.switch_to()
+            report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
                                 "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:
