@@ -27,12 +27,13 @@ SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens a
 
 
 class GuardianWindow(arcade.Window):
-    def __init__(self, data_dir, *, fullscreen=False, practice=False, visible=True, automated=False):
+    def __init__(self, data_dir, *, fullscreen=False, practice=False, booth=False, visible=True, automated=False):
         super().__init__(1280, 720, "패스워드 가디언 · Password Guardian", resizable=True,
                          fullscreen=fullscreen, visible=visible, antialiasing=True, vsync=True,
                          update_rate=1/60, draw_rate=1/60)
         self.set_minimum_size(960, 540)
         self.automated = automated
+        self.booth = booth  # launched by the booth launcher: one game, then quit
         self.engine = Engine(practice=practice)
         load_fonts()
         self.textures = load_textures()
@@ -88,6 +89,11 @@ class GuardianWindow(arcade.Window):
             self.resume_in = 0.0 if self.manual_paused else 3.0
 
     def on_key_press(self, key, modifiers):
+        # Booth: Esc on the title screen or Shift+Esc at any time hands control back to the launcher.
+        # Esc and Shift work whatever the Korean/English input state is.
+        if self.booth and key == arcade.key.ESCAPE and (self.engine.state == "TITLE" or modifiers & arcade.key.MOD_SHIFT):
+            self.finish()
+            return
         if key in (arcade.key.F11, arcade.key.ESCAPE):
             if key in self.control_keys:
                 return
@@ -131,6 +137,9 @@ class GuardianWindow(arcade.Window):
         if self.engine.state == "TUTORIAL":
             self.seen_attacks.clear()
         if self.engine.state == "TITLE":
+            if self.booth and self.engine.result:  # the result screen ran out: back to the launcher
+                self.finish()
+                return
             self.request_board()
 
     def request_board(self, result=None):
@@ -285,6 +294,8 @@ class GuardianWindow(arcade.Window):
             if self.resume_in > 0:
                 detail = "이동 키를 준비하세요"
             self.txt("pause-detail", detail, 960, 530, 25, MUTED, anchor="center")
+            if self.booth:
+                self.txt("pause-quit", "운영진: Shift + Esc 게임 끝내기", 960, 460, 20, MUTED, anchor="center")
 
     def draw_title(self):
         self.txt("eyebrow", "DIGITAL SECURITY / INTERACTIVE MISSION", 100, 983, 18, CYAN)
@@ -300,7 +311,8 @@ class GuardianWindow(arcade.Window):
             self.txt(f"control-key{i}", key, x, 297, 25, CYAN, bold=True)
             self.txt(f"control-label{i}", action, x, 251, 20, MUTED)
         self.txt("title-learning", "길게 만들고 · 다르게 쓰고 · 한 번 더 확인하세요", 100, 154, 23, WHITE)
-        self.txt("footer", "F11 전체 화면    ·    Esc 일시정지    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
+        keys = "Esc 끝내기" if self.booth else "F11 전체 화면    ·    Esc 일시정지"
+        self.txt("footer", f"{keys}    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
         self.draw_board(1200, 160, 620, 815)
 
     def draw_board(self, x, y, w, h, *, result=False):
@@ -476,7 +488,7 @@ class GuardianWindow(arcade.Window):
             self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
             self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
         self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
-        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 시작 화면으로 돌아갑니다", 94, 114, 24, CYAN)
+        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 {'게임이 끝납니다' if self.booth else '시작 화면으로 돌아갑니다'}", 94, 114, 24, CYAN)
         self.txt("result-disclaimer", "등급은 실제 보안 진단이 아닙니다. 탄막과 강화는 학습을 위한 비유입니다.", 94, 63, 16, MUTED)
         self.draw_board(1200, 130, 620, 815, result=True)
 
@@ -485,6 +497,14 @@ class GuardianWindow(arcade.Window):
             self.worker.close()
             self.closed_worker = True
         super().on_close()
+
+    def finish(self):
+        for _, future in list(self.jobs):  # let the last result reach the ranking file
+            try:
+                future.result(timeout=5)
+            except Exception:
+                pass
+        self.shutdown()
 
     def shutdown(self):
         if not self.closed_worker:
