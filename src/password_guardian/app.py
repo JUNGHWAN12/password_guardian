@@ -6,7 +6,7 @@ import arcade
 from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
-from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, NAME_SECONDS, OPERATOR_HOLD, EDITOR_IDLE
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, NAME_SECONDS, OPERATOR_HOLD, EDITOR_IDLE, RESULT_SKIP_LOCK
 from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .names import NAME_LENGTH, is_allowed
 from .rankings import ANONYMOUS, TOP, Board, RankingWorker
@@ -25,6 +25,7 @@ YELLOW = (255, 214, 60)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
 STARTUP_RESTORE_SECONDS = 8.0  # undo a minimized or background start during the first seconds
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
+SKIP_KEYS = (arcade.key.ENTER, arcade.key.RETURN, arcade.key.NUM_ENTER, arcade.key.SPACE, arcade.key.ESCAPE)
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
 
 
@@ -184,6 +185,15 @@ class GuardianWindow(arcade.Window):
             return
         if self.entry == "typing" and self.engine.state == "RESULT" and not self.paused:
             self.type_initial(key)
+            return
+        if (self.engine.state == "RESULT" and not self.paused and key in SKIP_KEYS
+                and self.engine.elapsed >= RESULT_SKIP_LOCK - 1e-6):
+            # QA 2026-10-21: visitors did not know how to leave and waited out the whole result screen.
+            if self.booth:
+                self.finish()  # back to the launcher's game list
+            elif self.engine.skip_result():
+                self.state_changed()
+                self.sync_sprites()
             return
         if key == arcade.key.ESCAPE and self.engine.state != "TITLE":
             if not self.focus_paused:
@@ -610,9 +620,9 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_outline(68, 113, 1424, 809, (255, 150, 60, 150), 3)
         if self.banner_left and e.state == "COMBAT":
             intro = e.intros[self.banner]
-            self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))
-            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
-            self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
+            self.panel(280, 762, 1000, 94, fill=(10, 27, 41, 236), edge=(150, 112, 50))
+            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 848, 22, GOLD, bold=True)
+            self.txt("banner-tip", intro["tip"], 306, 812, 24, WHITE, bold=True)
         self.draw_sidebar()
         self.txt("game-footer", "방향키 이동     SHIFT 정밀 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")
@@ -642,6 +652,18 @@ class GuardianWindow(arcade.Window):
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
         self.txt("tutorial-body", "방향키로 움직이면 자동 발사돼요. Shift를 누르면 천천히 움직이고\n맞는 곳(빨간 점)이 보여요. Space는 주변 탄환을 지워요.", 335, 691, 22, MUTED, width=890)
         self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
+        # QA 2026-10-21: show which shapes hurt. Enemy shots have a red halo; items are white-rimmed tiles.
+        self.panel(295, 380, 970, 150, fill=(10, 27, 41, 245), edge=(55, 126, 140))
+        for i, kind in enumerate(("guess", "dict", "leak")):
+            self.image(kind, 345 + i*52, 455, self.textures[kind].width)
+        self.txt("legend-enemy", "적 탄환", 510, 488, 22, RED, bold=True)
+        self.txt("legend-enemy-tip", "맞으면 아파요. 피하세요!", 510, 455, 19, WHITE)
+        self.image("player_bullet", 812, 455, self.textures["player_bullet"].width)
+        self.txt("legend-mine", "내 탄환", 840, 488, 20, CYAN, bold=True)
+        for i, kind in enumerate(("patch", "backup")):
+            self.image(kind, 990 + i*50, 455, self.textures[kind].width)
+        self.txt("legend-item", "아이템", 1070, 488, 20, GOLD, bold=True)
+        self.txt("legend-item-tip", "먹으면 좋아요", 1070, 455, 19, WHITE)
 
     def draw_choice(self):
         e = self.engine
@@ -688,14 +710,23 @@ class GuardianWindow(arcade.Window):
         else:
             rank_message = self.rank_status
         self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
+        # QA 2026-10-21: what was learned should stand out, as three short habits.
+        self.txt("result-habits", "오늘의 비밀번호 습관 3가지", 125, 462, 21, GOLD, bold=True)
         for i, record in enumerate(result.choices):
-            y = 432-i*62
+            y = 420-i*56
             label = "정답" if record.correct else "미선택" if record.selection is None else "다시 기억해요"
-            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 23, CYAN)
-            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
-            self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
-        self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
-        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 {'게임이 끝납니다' if self.booth else '시작 화면으로 돌아갑니다'}", 94, 114, 24, CYAN)
+            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 27, CYAN, bold=True)
+            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 28, WHITE, bold=True)
+            self.txt(f"result-choice-status{i}", label, 1085, y-3, 21, CYAN if record.correct else GOLD, anchor="right")
+        self.txt("result-message", "세 가지를 함께 쓰세요. 어떤 방법도 혼자서는 모든 공격을 막지 못해요.", 94, 218, 22, WHITE)
+        if self.entry != "typing":  # while typing, Enter saves the initials instead
+            where = "게임 선택으로" if self.booth else "처음 화면으로"
+            ready = self.engine.elapsed >= RESULT_SKIP_LOCK - 1e-6
+            self.panel(90, 92, 1045, 70, fill=(10, 27, 41, 235), edge=CYAN if ready else EDGE)
+            self.txt("result-skip-key", "ENTER", 120, 147, 32, CYAN if ready else MUTED, bold=True)
+            self.txt("result-skip", where, 290, 145, 30, WHITE if ready else MUTED, bold=True)
+            self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 뒤 자동으로 이동", 1105, 140, 20, MUTED,
+                     anchor="right")
         self.txt("result-disclaimer", "등급은 실제 보안 진단이 아닙니다. 탄막과 강화는 학습을 위한 비유입니다.", 94, 63, 16, MUTED)
         if self.entry == "typing":
             self.draw_entry(1200, 130, 620, 815)
