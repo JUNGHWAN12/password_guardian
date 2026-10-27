@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import arcade
 import pyglet
 from password_guardian.app import FONT, GuardianWindow
-from password_guardian.config import MANUAL_PAUSE_SECONDS
+from password_guardian.config import MANUAL_PAUSE_SECONDS, CHOICE_SECONDS, COMBAT_SECONDS, RESULT_SECONDS, RESULT_SKIP_LOCK
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
 
@@ -93,9 +93,9 @@ def main():
                         key = arcade.key.KEY_2 if cycle % 3 == 0 else arcade.key.KEY_1
                         window.on_key_press(key, 0)
                         window.on_key_release(key, 0)
-                    window.on_update(8)
+                    window.on_update(CHOICE_SECONDS)
                     assert window.engine.state == "COMBAT"
-                    for tick in range(52):
+                    for tick in range(int(COMBAT_SECONDS)):
                         window.keys.discard(arcade.key.RIGHT)
                         window.keys.discard(arcade.key.LEFT)
                         window.keys.add(arcade.key.RIGHT if (tick//4)%2 == 0 else arcade.key.LEFT)
@@ -121,7 +121,16 @@ def main():
                     window.on_update(MANUAL_PAUSE_SECONDS)
                     window.on_update(3)
                 assert window.engine.state == "RESULT"
-                window.on_update(40)
+                if cycle == 1:
+                    # Enter leaves the result screen at once, but not in the first moment (keys held from combat).
+                    window.on_key_press(arcade.key.ENTER, 0)
+                    window.on_key_release(arcade.key.ENTER, 0)
+                    assert window.engine.state == "RESULT"
+                    window.on_update(RESULT_SKIP_LOCK)
+                    window.on_key_press(arcade.key.ENTER, 0)
+                    window.on_key_release(arcade.key.ENTER, 0)
+                else:
+                    window.on_update(RESULT_SECONDS)
                 assert window.engine.state == "TITLE"
                 assert all(len(window.sprite_lists[n]) == 0 for n in ("enemies", "shots", "threats"))
                 wait_jobs()
@@ -153,7 +162,7 @@ def main():
             capture("letterbox_4_3")
             # Booth launcher mode: Esc on the title or Shift+Esc mid-game quits; a finished game quits by itself
             # after its result is saved.
-            for quit_how in ("title-esc", "shift-esc", "finished"):
+            for quit_how in ("title-esc", "shift-esc", "finished", "result-enter"):
                 booth = GuardianWindow(data, visible=False, automated=True, booth=True)
                 booth.switch_to()
                 if quit_how == "title-esc":
@@ -170,10 +179,14 @@ def main():
                             if booth.closed_worker:
                                 break
                             booth.on_update(0.5)
+                            if quit_how == "result-enter" and booth.engine.state == "RESULT":
+                                booth.on_update(RESULT_SKIP_LOCK)
+                                booth.on_key_press(arcade.key.ENTER, 0)  # one key back to the launcher
+                                assert booth.closed_worker
                         assert RankingRepository(data/"rankings.sqlite3").board().total == saved + 1
                 assert booth.closed_worker, quit_how
             window.switch_to()
-            report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",
+            report["checks"] = ["10 complete simulated sessions", "booth mode quits (incl. Enter on result)", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
                                 "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:

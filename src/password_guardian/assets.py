@@ -62,6 +62,16 @@ def _bubble(text, fill):
     return im
 
 
+def _danger_bubble(text, fill):
+    """An enemy bullet that must not look like an item: a red halo and red rim around the bubble."""
+    im, d = _canvas(30, 30)
+    d.ellipse((0, 0, 30 * SS, 30 * SS), fill=(255, 40, 60, 95))  # soft red glow
+    d.ellipse((2 * SS, 2 * SS, 28 * SS, 28 * SS), outline=(255, 40, 60, 255), width=2 * SS)
+    d.ellipse((4 * SS, 4 * SS, 26 * SS, 26 * SS), fill=fill, outline=(255, 70, 80), width=2 * SS)
+    _label(d, (0, 0, 30 * SS, 30 * SS), text, 16)
+    return im
+
+
 def _book(fill):
     im, d = _canvas(30, 24)
     s = SS
@@ -174,7 +184,7 @@ def _firewall():  # brick wall
 def bullet_textures():
     # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
     # bell (approval prompts), keycap (keylogger) and an eye diamond (shoulder surfer) for the newer attacks.
-    return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_bubble("?", ORANGE), "guess"),
+    return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_danger_bubble("?", ORANGE), "guess-danger"),
             "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
             "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap"),
             "peek": _texture(_diamond(), "peek"), "patch": _texture(_patch(), "patch"),

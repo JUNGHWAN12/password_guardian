@@ -6,7 +6,7 @@ import arcade
 from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
-from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, ANSWER_SECONDS, RESULT_SKIP_LOCK
 from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
 from .rankings import Board, RankingWorker, participant_code
 
@@ -131,6 +131,15 @@ class GuardianWindow(arcade.Window):
         if self.engine.state == "TITLE" and key in (arcade.key.ENTER, arcade.key.RETURN):
             self.engine.start()
             self.state_changed()
+        elif self.engine.state == "RESULT" and key in (arcade.key.ENTER, arcade.key.RETURN):
+            # Visitors leave the result screen with one key instead of waiting it out.
+            if self.engine.elapsed >= RESULT_SKIP_LOCK - 1e-6:  # elapsed is a sum of small steps
+                if self.booth:
+                    self.finish()  # back to the launcher's game list
+                else:
+                    self.engine.advance()
+                    self.state_changed()
+                    self.sync_sprites()
         elif self.engine.state == "CHOICE":
             if key in (arcade.key.KEY_1, arcade.key.NUM_1):
                 self.engine.choose(1)
@@ -421,9 +430,9 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_outline(68, 113, 1424, 809, (255, 150, 60, 150), 3)
         if self.banner_left and e.state == "COMBAT":
             intro = e.intros[self.banner]
-            self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))
-            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
-            self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
+            self.panel(230, 752, 1100, 104, fill=(10, 27, 41, 238), edge=(150, 112, 50))
+            self.txt("banner-name", f"새 공격 · {intro['name']}", 258, 846, 24, GOLD, bold=True)
+            self.txt("banner-tip", intro["tip"], 258, 805, 26, WHITE, bold=True)
         self.draw_sidebar()
         self.txt("game-footer", "방향키 이동     SHIFT 정밀 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")
@@ -453,6 +462,11 @@ class GuardianWindow(arcade.Window):
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
         self.txt("tutorial-body", "방향키로 움직이면 자동 발사돼요. Shift를 누르면 천천히 움직이고\n맞는 곳(빨간 점)이 보여요. Space는 주변 탄환을 지워요.", 335, 691, 22, MUTED, width=890)
         self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
+        # The "?" guess bullet looked like an item or a hint to testers: show it as an enemy shot.
+        self.panel(295, 400, 970, 120, fill=(40, 12, 22, 240), edge=RED)
+        self.image("guess", 375, 460, 64)
+        self.txt("tutorial-bullet-title", "이 모양은 적 탄환이에요. 피하세요!", 440, 494, 28, RED, bold=True)
+        self.txt("tutorial-bullet-body", "빨간 테두리가 있는 것은 모두 공격이에요. 맞으면 체력이 줄어요.", 440, 446, 21, WHITE)
 
     def draw_choice(self):
         e = self.engine
@@ -472,7 +486,7 @@ class GuardianWindow(arcade.Window):
             self.txt(f"choice-option{i}", option, x+30, 548, 27, WHITE, width=510, bold=True)
             self.txt(f"choice-check{i}", "안전한 선택" if correct_reveal else "선택됨" if selected else f"키보드 {i+1}", x+30, 456, 18, edge if selected or correct_reveal else MUTED)
         if record is None:
-            message = f"선택 시간  {max(0, math.ceil(6-e.elapsed))}초"
+            message = f"선택 시간  {max(0, math.ceil(ANSWER_SECONDS-e.elapsed))}초"
             self.txt("choice-feedback", message, 145, 354, 28, GOLD)
             self.txt("choice-explanation", "틀려도 괜찮아요. 안전한 습관을 배우고 계속 진행합니다.", 145, 294, 23, MUTED, width=1200)
         else:
@@ -499,14 +513,17 @@ class GuardianWindow(arcade.Window):
         else:
             rank_message = self.rank_status
         self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
+        self.txt("result-habits", "오늘의 비밀번호 습관 3가지", 125, 462, 25, GOLD, bold=True)
         for i, record in enumerate(result.choices):
-            y = 432-i*62
+            y = 414-i*56
             label = "정답" if record.correct else "미선택" if record.selection is None else "다시 기억해요"
-            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 23, CYAN)
-            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
-            self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
-        self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
-        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 {'게임이 끝납니다' if self.booth else '시작 화면으로 돌아갑니다'}", 94, 114, 24, CYAN)
+            self.txt(f"result-choice-num{i}", f"{i+1}.", 125, y, 28, CYAN, bold=True)
+            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 175, y, 28, WHITE, bold=True)
+            self.txt(f"result-choice-status{i}", label, 1105, y-4, 20, CYAN if record.correct else GOLD, anchor="right")
+        self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 228, 21, MUTED, width=1050)
+        target = "게임 선택으로" if self.booth else "시작 화면으로"
+        self.txt("result-enter", f"ENTER  {target}", 94, 138, 40, GOLD, bold=True)
+        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 자동으로 이동해요", 1135, 124, 22, CYAN, anchor="right")
         self.txt("result-disclaimer", "등급은 실제 보안 진단이 아닙니다. 탄막과 강화는 학습을 위한 비유입니다.", 94, 63, 16, MUTED)
         self.draw_board(1200, 130, 620, 815, result=True)
 

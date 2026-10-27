@@ -6,7 +6,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from password_guardian.config import (FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS,
-                                      MAX_ENEMIES, MAX_ENEMY_BULLETS)
+                                      MAX_ENEMIES, MAX_ENEMY_BULLETS, CHOICE_SECONDS, ANSWER_SECONDS, COMBAT_SECONDS,
+                                      RESULT_SECONDS)
 from password_guardian.engine import (Engine, Entity, KEYLOGGER_DELAY, PHISH_REVEAL, DROP_CYCLE, FIREWALL_SECONDS,
                                       SHIELD_MAX, overlaps)
 from password_guardian.session import Session, grade_for
@@ -16,21 +17,33 @@ class TimelineTests(unittest.TestCase):
     def test_full_240_second_session_without_input(self):
         engine = Engine(seed=12)
         engine.start()
-        for delta, state, stage in [(20, "CHOICE", 0), (8, "COMBAT", 0),
-                                    (52, "CHOICE", 1), (8, "COMBAT", 1),
-                                    (52, "CHOICE", 2), (8, "COMBAT", 2),
-                                    (52, "RESULT", 2)]:
+        self.assertEqual(CHOICE_SECONDS + COMBAT_SECONDS, 60)  # the game clock counts 60 seconds per stage
+        for delta, state, stage in [(20, "CHOICE", 0), (CHOICE_SECONDS, "COMBAT", 0),
+                                    (COMBAT_SECONDS, "CHOICE", 1), (CHOICE_SECONDS, "COMBAT", 1),
+                                    (COMBAT_SECONDS, "CHOICE", 2), (CHOICE_SECONDS, "COMBAT", 2),
+                                    (COMBAT_SECONDS, "RESULT", 2)]:
+            if state == "COMBAT":
+                self.assertAlmostEqual(engine.game_remaining, 180 - stage*60)
             engine.update(delta)
             self.assertEqual((engine.state, engine.stage), (state, stage))
         self.assertIsNotNone(engine.result)
         self.assertTrue(all(c.selection is None for c in engine.result.choices))
-        engine.update(40)
+        engine.update(RESULT_SECONDS)
         self.assertEqual(engine.state, "TITLE")
+
+    def test_answer_window_is_long_enough_to_read(self):
+        engine = Engine(seed=3)
+        engine.start()
+        engine.update(20)
+        engine.update(ANSWER_SECONDS - 0.5)
+        self.assertEqual(engine.state, "CHOICE")
+        engine.choose(1)  # 11.5 seconds in: still accepted
+        self.assertEqual(engine.session.choices[0].selection, 1)
 
     def test_large_update_carries_remainder_and_runs_events_once(self):
         engine = Engine(seed=1)
         engine.start()
-        engine.update(29.25)
+        engine.update(20 + CHOICE_SECONDS + 1.25)
         self.assertEqual(engine.state, "COMBAT")
         self.assertAlmostEqual(engine.elapsed, 1.25, places=6)
         self.assertEqual(engine.event_index, 1)
@@ -42,7 +55,7 @@ class TimelineTests(unittest.TestCase):
         engine.update(20)
         self.assertTrue(engine.choose(2))
         self.assertFalse(engine.choose(1))
-        engine.update(7.5)
+        engine.update(CHOICE_SECONDS - 0.5)
         self.assertEqual(engine.state, "CHOICE")
         self.assertEqual(engine.session.score, 200)
         engine.update(0.5)
@@ -51,7 +64,7 @@ class TimelineTests(unittest.TestCase):
     def test_timeout_records_missing_not_wrong_choice(self):
         engine = Engine()
         engine.start()
-        engine.update(26)
+        engine.update(20 + ANSWER_SECONDS)
         self.assertIsNone(engine.session.choices[0].selection)
         self.assertFalse(engine.choose(2))
         self.assertEqual(engine.session.score, 0)
@@ -96,7 +109,7 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual((engine.state, engine.stage), ("CHOICE", 2))
         self.assertEqual((engine.player.x, engine.player.y), PLAYER_START)
         engine.session.hp, engine.session.shield, engine.invulnerable = 3, 0, 0
-        engine.update(8)
+        engine.update(CHOICE_SECONDS)
         boss = next(e for e in engine.enemies if e.kind == "boss")
         self.assertFalse(overlaps(engine.player, boss))
         self.assertEqual(engine.session.hp, 3)
