@@ -12,7 +12,7 @@ import arcade
 import pyglet
 from password_guardian.app import FONT, GuardianWindow
 from password_guardian.config import (MANUAL_PAUSE_SECONDS, CHOICE_SECONDS, COMBAT_SECONDS, RESULT_SECONDS,
-                                      RESULT_SKIP_LOCK)
+                                      RESULT_SKIP_LOCK, MAX_ENEMIES, MAX_ENEMY_BULLETS)
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
 
@@ -103,8 +103,8 @@ def main():
                         window.on_update(1)
                         if cycle == 0 and tick == 12:
                             capture(f"stage_{stage+1}")
-                        assert len(window.engine.enemy_bullets) <= 250
-                        assert len(window.engine.enemies) <= 20
+                        assert len(window.engine.enemy_bullets) <= MAX_ENEMY_BULLETS
+                        assert len(window.engine.enemies) <= MAX_ENEMIES
                     assert window.engine.state == ("RESULT" if stage == 2 else "CHOICE")
                 wait_jobs()
                 # Each of the first ten games makes today's TOP 10 and asks for initials.
