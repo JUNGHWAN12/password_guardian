@@ -6,7 +6,7 @@ import math
 import random
 
 from .config import (FIELD, PLAYER_START, STEP, PLAYER_SPEED, PRECISE_SPEED, PLAYER_HIT_RADIUS, TUTORIAL_SECONDS, CHOICE_SECONDS,
-                     ANSWER_SECONDS, COMBAT_SECONDS, RESULT_SECONDS,
+                     ANSWER_SECONDS, COMBAT_SECONDS, RESULT_SECONDS, RESULT_SKIP_LOCK,
                      MAX_ENEMIES, MAX_ENEMY_BULLETS, MAX_PLAYER_BULLETS)
 from .content import load_content
 from .session import Session
@@ -191,6 +191,13 @@ class Engine:
             if self.remaining < 1e-8:
                 self.advance()
                 movement, precise = (0, 0), False  # held keys never carry through a stage boundary
+
+    def skip_result(self):
+        """Enter/Space on the result screen: leave early, after RESULT_SKIP_LOCK so a held key cannot skip it."""
+        if self.state == "RESULT" and self.elapsed >= RESULT_SKIP_LOCK - 1e-6:
+            self.enter("TITLE")
+            return True
+        return False
 
     def advance(self):
         if self.state == "TUTORIAL":

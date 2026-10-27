@@ -1,6 +1,6 @@
 # 부스 노트북용 Windows 실행 파일(PasswordGuardian.exe)을 만든다.
 # 결과: 이 작업 페이지 아래 Artifacts의 'PasswordGuardian-windows' (압축을 풀면 PasswordGuardian 폴더)
-# 부스 런처에서는 PasswordGuardian.exe --booth --fullscreen 으로 실행한다.
+# 부스 런처에서는 PasswordGuardian.exe --booth 로 실행한다(전체 화면은 기본값).
 name: Windows 실행 파일 만들기
 
 on:

@@ -11,7 +11,8 @@ sys.path.insert(0, str(ROOT / "src"))
 import arcade
 import pyglet
 from password_guardian.app import FONT, GuardianWindow
-from password_guardian.config import MANUAL_PAUSE_SECONDS
+from password_guardian.config import (MANUAL_PAUSE_SECONDS, CHOICE_SECONDS, COMBAT_SECONDS, RESULT_SECONDS,
+                                      RESULT_SKIP_LOCK)
 from password_guardian.engine import Entity
 from password_guardian.rankings import RankingRepository
 
@@ -93,9 +94,9 @@ def main():
                         key = arcade.key.KEY_2 if cycle % 3 == 0 else arcade.key.KEY_1
                         window.on_key_press(key, 0)
                         window.on_key_release(key, 0)
-                    window.on_update(8)
+                    window.on_update(CHOICE_SECONDS)
                     assert window.engine.state == "COMBAT"
-                    for tick in range(52):
+                    for tick in range(int(COMBAT_SECONDS)):
                         window.keys.discard(arcade.key.RIGHT)
                         window.keys.discard(arcade.key.LEFT)
                         window.keys.add(arcade.key.RIGHT if (tick//4)%2 == 0 else arcade.key.LEFT)
@@ -106,7 +107,29 @@ def main():
                         assert len(window.engine.enemies) <= 20
                     assert window.engine.state == ("RESULT" if stage == 2 else "CHOICE")
                 wait_jobs()
-                assert window.board.own is not None
+                # Each of the first ten games makes today's TOP 10 and asks for initials.
+                assert window.entry == "typing", window.rank_status
+
+                def press(key):
+                    window.on_key_press(key, 0)
+                    window.on_key_release(key, 0)
+                if cycle == 0:
+                    for key in (arcade.key.S, arcade.key.E, arcade.key.X, arcade.key.ENTER):
+                        press(key)  # a banned name is refused, nothing saved
+                    assert window.entry == "typing" and window.entry_warning
+                    for _ in range(3):
+                        press(arcade.key.BACKSPACE)
+                    press(arcade.key.K)
+                    press(arcade.key.ENTER)  # too short
+                    assert window.entry == "typing" and window.entry_text == "K"
+                    capture("initials")
+                    press(arcade.key.BACKSPACE)
+                for key in (arcade.key.K, arcade.key.A + cycle, arcade.key.M):
+                    press(key)
+                press(arcade.key.ENTER)
+                assert window.entry == "saved"
+                wait_jobs()
+                assert window.board.own is not None and window.board.own["name"] == "K" + chr(65+cycle) + "M"
                 assert window.board.total == cycle+1
                 assert window.board.own["session_id"] == window.engine.result.session_id
                 if cycle == 0:
@@ -114,20 +137,53 @@ def main():
                 report["cycles"].append({"score": window.engine.result.score,
                                           "revives": window.engine.result.revive_count,
                                           "rank": window.board.own["rank"]})
-                if cycle == 0:
-                    # Paused on the result screen and left alone: still returns to the title.
-                    window.on_key_press(arcade.key.ESCAPE, 0)
-                    window.on_key_release(arcade.key.ESCAPE, 0)
-                    window.on_update(MANUAL_PAUSE_SECONDS)
-                    window.on_update(3)
                 assert window.engine.state == "RESULT"
-                window.on_update(40)
+                if cycle == 1:
+                    # Enter leaves the result screen at once, but not in its first seconds (a held key).
+                    window.on_key_press(arcade.key.SPACE, 0)
+                    window.on_key_release(arcade.key.SPACE, 0)
+                    assert window.engine.state == "RESULT"
+                    window.on_update(RESULT_SKIP_LOCK + 0.1)
+                    window.on_key_press(arcade.key.ENTER, 0)
+                    window.on_key_release(arcade.key.ENTER, 0)
+                else:
+                    window.on_update(RESULT_SECONDS)
                 assert window.engine.state == "TITLE"
                 assert all(len(window.sprite_lists[n]) == 0 for n in ("enemies", "shots", "threats"))
                 wait_jobs()
                 print(f"Full session {cycle+1}/10 passed", flush=True)
             capture("leaderboard")
-            assert RankingRepository(data/"rankings.sqlite3").board().total == 10
+            assert RankingRepository(data/"ranking.json").board().total == 10
+            # Staff keys on the title: hold F8 for the name editor, Enter twice turns a name into ???;
+            # hold F9 to clear today's board; Ctrl+Shift+Q quits.
+            assert window.engine.state == "TITLE"
+            wait_jobs()
+            window.on_key_press(arcade.key.F8, 0)
+            window.on_update(2.0)
+            window.on_key_release(arcade.key.F8, 0)  # let go too early: nothing happens
+            assert not window.editing
+            window.on_key_press(arcade.key.F8, 0)
+            for _ in range(7):
+                window.on_update(0.5)
+            window.on_key_release(arcade.key.F8, 0)
+            assert window.editing
+            window.on_key_press(arcade.key.DOWN, 0)
+            window.on_key_press(arcade.key.ENTER, 0)
+            assert window.edit_armed and window.engine.state == "TITLE"
+            capture("staff_editor")
+            target = window.board.rows[1]["session_id"]
+            window.on_key_press(arcade.key.ENTER, 0)
+            wait_jobs()
+            assert [r["name"] for r in window.board.rows if r["session_id"] == target] == ["???"]
+            window.on_key_press(arcade.key.F8, 0)
+            assert not window.editing
+            window.on_key_press(arcade.key.F9, 0)
+            for _ in range(7):
+                window.on_update(0.5)
+            window.on_key_release(arcade.key.F9, 0)
+            wait_jobs()
+            assert window.board.total == 0 and RankingRepository(data/"ranking.json").board().total == 0
+            assert list(data.glob("ranking_reset_*.json"))
 
             # Rendering and frame timing with near-cap sprites. No ranking save.
             window.engine.start()
@@ -153,27 +209,46 @@ def main():
             capture("letterbox_4_3")
             # Booth launcher mode: Esc on the title or Shift+Esc mid-game quits; a finished game quits by itself
             # after its result is saved.
-            for quit_how in ("title-esc", "shift-esc", "finished"):
+            for quit_how in ("title-esc", "shift-esc", "ctrl-shift-q", "result-enter", "finished"):
                 booth = GuardianWindow(data, visible=False, automated=True, booth=True)
                 booth.switch_to()
                 if quit_how == "title-esc":
                     booth.on_key_press(arcade.key.ESCAPE, 0)
+                elif quit_how == "ctrl-shift-q":
+                    booth.on_key_press(arcade.key.Q, arcade.key.MOD_CTRL | arcade.key.MOD_SHIFT)
                 else:
                     booth.on_key_press(arcade.key.ENTER, 0)
                     booth.on_key_release(arcade.key.ENTER, 0)
                     if quit_how == "shift-esc":
                         booth.on_update(5)
                         booth.on_key_press(arcade.key.ESCAPE, arcade.key.MOD_SHIFT)
+                    elif quit_how == "result-enter":
+                        while booth.engine.state != "RESULT":
+                            booth.on_key_press(arcade.key.ENTER, 0)  # Enter mid-game must not end anything
+                            booth.on_key_release(arcade.key.ENTER, 0)
+                            assert not booth.closed_worker
+                            booth.on_update(1)
+                        for _, future in list(booth.jobs):
+                            future.result(timeout=5)
+                        booth.on_update(RESULT_SKIP_LOCK + 0.1)
+                        if booth.entry == "typing":
+                            booth.on_key_press(arcade.key.ESCAPE, 0)  # skip the initials
+                        booth.on_key_press(arcade.key.ENTER, 0)
                     else:
-                        saved = RankingRepository(data/"rankings.sqlite3").board().total
-                        for _ in range(int(240/0.5) + 2):
+                        saved = RankingRepository(data/"ranking.json").board().total
+                        for _ in range(int(245/0.5) + 2):
                             if booth.closed_worker:
                                 break
                             booth.on_update(0.5)
-                        assert RankingRepository(data/"rankings.sqlite3").board().total == saved + 1
+                            for _, future in list(booth.jobs):  # real seconds pass between frames in a real game
+                                future.result(timeout=5)
+                        # Nobody typed initials (or it missed the TOP 10): the record is not kept.
+                        assert RankingRepository(data/"ranking.json").board().total == saved
+                        assert booth.entry == "closed", booth.entry
+                        report["booth_result_message"] = booth.rank_status
                 assert booth.closed_worker, quit_how
             window.switch_to()
-            report["checks"] = ["10 complete 240-second simulated sessions", "booth mode quits", "correct/wrong/missing choices",
+            report["checks"] = ["10 complete 240-second simulated sessions", "initials entry and banned names", "staff F8 editor, F9 reset, Ctrl+Shift+Q", "booth mode quits", "result screen Enter/Space skip with lock", "correct/wrong/missing choices",
                                 "restart persistence", "no duplicate registrations", "input debouncing",
                                 "pause and focus recovery", "manual pause auto-resume", "bundled IBM Plex Sans KR font", "stage cleanup", "4:3 letterbox", "OpenGL render"]
         finally:

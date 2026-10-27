@@ -6,9 +6,10 @@ import arcade
 from arcade.types import LBWH, LRBT
 
 from .assets import load_fonts, load_textures
-from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS
+from .config import WIDTH, HEIGHT, FIELD, MANUAL_PAUSE_SECONDS, NAME_SECONDS, OPERATOR_HOLD, EDITOR_IDLE, RESULT_SKIP_LOCK
 from .engine import Engine, ENEMY_STATS, ITEM_NOTICES, PHISH_REVEAL, SIGHT_HALF, SIGHT_STARE, GIFT_OPEN_Y, GIFT_OPEN_AGE
-from .rankings import Board, RankingWorker, participant_code
+from .names import NAME_LENGTH, is_allowed
+from .rankings import ANONYMOUS, TOP, Board, RankingWorker
 
 INK = (7, 14, 24)
 PANEL = (13, 27, 42, 244)
@@ -22,9 +23,30 @@ PURPLE = (194, 141, 255)
 PINK = (255, 92, 170)
 YELLOW = (255, 214, 60)
 FONT = ("IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", "Arial")  # bundled font first
-STARTUP_RESTORE_SECONDS = 5.0  # booth: undo a minimized start during the first seconds
+STARTUP_RESTORE_SECONDS = 8.0  # undo a minimized or background start during the first seconds
 STAGES = ("기본 방어", "복합 공격", "최종 방어")
+SKIP_KEYS = (arcade.key.ENTER, arcade.key.RETURN, arcade.key.NUM_ENTER, arcade.key.SPACE, arcade.key.ESCAPE)
 SCREEN_SHADE, FIELD_SHADE = 60, 90  # dark veils over the title/result screens and the combat field
+
+
+def disable_ime(window):
+    """Turn the window's input method off so initials type as A-Z even when the keyboard is in Korean mode.
+
+    Same approach as Clean Data Labeler. Without it Windows hands Korean-mode letter keys to the IME.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        associate = ctypes.windll.imm32.ImmAssociateContext
+        associate.argtypes = (wintypes.HWND, wintypes.HANDLE)
+        associate.restype = wintypes.HANDLE
+        for hwnd in (getattr(window, "_hwnd", None), getattr(window, "_view_hwnd", None)):
+            if hwnd:
+                associate(hwnd, None)
+    except Exception:
+        pass  # the game still runs; staff can switch the keyboard to English instead
 
 
 class GuardianWindow(arcade.Window):
@@ -35,6 +57,14 @@ class GuardianWindow(arcade.Window):
         self.set_minimum_size(960, 540)
         self.automated = automated
         self.booth = booth  # launched by the booth launcher: one game, then quit
+        disable_ime(self)
+        # Initials on the result screen: None, "typing", "saved" or "closed" (skipped, timed out, outside TOP 10).
+        self.entry, self.entry_text, self.entry_warning = None, "", ""
+        # Staff tools on the title screen: hold F8 to fix a name, hold F9 to clear today's board.
+        self.hold_key, self.hold_since = None, 0.0
+        self.editing, self.edit_index, self.edit_armed, self.edit_idle = False, 0, False, 0.0
+        self.notice, self.notice_left = "", 0.0
+        self.front_pending, self.front_check_at = True, 0.0
         self.engine = Engine(practice=practice)
         load_fonts()
         self.textures = load_textures()
@@ -55,7 +85,7 @@ class GuardianWindow(arcade.Window):
         self.banner, self.banner_left = None, 0.0
         self.board = Board((), 0, None)
         self.rank_status = "기록을 불러오는 중"
-        self.worker = RankingWorker(Path(data_dir) / "rankings.sqlite3")
+        self.worker = RankingWorker(Path(data_dir) / "ranking.json")
         self.jobs = []
         self.request_board()
         self.sprite_maps = {name: {} for name in ("player", "enemies", "items", "shots", "threats")}
@@ -73,20 +103,44 @@ class GuardianWindow(arcade.Window):
         if hasattr(self, "camera"):
             self.fit_camera()
 
-    def restore_if_minimized(self):
-        """Windows can start a fullscreen window minimized when another program (the booth launcher)
-        holds the foreground. During the first seconds, bring it back and to the front."""
+    def bring_to_front(self):
+        """Undo a minimized or background start, which Windows does when another program (the booth launcher)
+        held the foreground. Returns True once the game window is restored and in front."""
         if sys.platform != "win32":
-            return
+            return True
         try:
             import ctypes
-            user32 = ctypes.windll.user32
+            from ctypes import wintypes
+            user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+            user32.IsIconic.argtypes = user32.BringWindowToTop.argtypes = user32.SetForegroundWindow.argtypes = (wintypes.HWND,)
+            user32.ShowWindow.argtypes = (wintypes.HWND, ctypes.c_int)
+            user32.GetForegroundWindow.restype = wintypes.HWND
+            user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.c_void_p)
+            user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+            user32.AttachThreadInput.argtypes = (wintypes.DWORD, wintypes.DWORD, wintypes.BOOL)
             hwnd = self._hwnd
             if user32.IsIconic(hwnd):
                 user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            front = user32.GetForegroundWindow()
+            if front == hwnd:
+                return True
+            # Windows lets only the program in front hand over the foreground: borrow its input queue for a moment,
+            # and send a bare Alt tap, which also lifts the lock.
+            ours = kernel32.GetCurrentThreadId()
+            theirs = user32.GetWindowThreadProcessId(front, None) if front else 0
+            attached = bool(theirs and theirs != ours and user32.AttachThreadInput(ours, theirs, True))
+            try:
+                user32.keybd_event(0x12, 0, 0, 0)  # VK_MENU down
+                user32.keybd_event(0x12, 0, 2, 0)  # and up
+                user32.ShowWindow(hwnd, 5)  # SW_SHOW
+                user32.BringWindowToTop(hwnd)
                 user32.SetForegroundWindow(hwnd)
+            finally:
+                if attached:
+                    user32.AttachThreadInput(ours, theirs, False)
+            return user32.GetForegroundWindow() == hwnd and not user32.IsIconic(hwnd)
         except Exception:
-            pass
+            return True  # never keep retrying something that cannot work here
 
     @property
     def paused(self):
@@ -105,6 +159,16 @@ class GuardianWindow(arcade.Window):
             self.resume_in = 0.0 if self.manual_paused else 3.0
 
     def on_key_press(self, key, modifiers):
+        # Staff: Ctrl+Shift+Q quits from any screen, the same key as Clean Data Labeler.
+        if key == arcade.key.Q and modifiers & arcade.key.MOD_CTRL and modifiers & arcade.key.MOD_SHIFT:
+            self.finish()
+            return
+        if self.editing:
+            self.edit_key(key)
+            return
+        if self.engine.state == "TITLE" and key in (arcade.key.F8, arcade.key.F9) and not self.paused:
+            self.hold_key, self.hold_since = key, self.clock
+            return
         # Booth: Esc on the title screen or Shift+Esc at any time hands control back to the launcher.
         # Esc and Shift work whatever the Korean/English input state is.
         if self.booth and key == arcade.key.ESCAPE and (self.engine.state == "TITLE" or modifiers & arcade.key.MOD_SHIFT):
@@ -117,6 +181,19 @@ class GuardianWindow(arcade.Window):
         if key == arcade.key.F11:
             self.set_fullscreen(not self.fullscreen)
             self.fit_camera()
+            disable_ime(self)
+            return
+        if self.entry == "typing" and self.engine.state == "RESULT" and not self.paused:
+            self.type_initial(key)
+            return
+        if (self.engine.state == "RESULT" and not self.paused and key in SKIP_KEYS
+                and self.engine.elapsed >= RESULT_SKIP_LOCK - 1e-6):
+            # QA 2026-10-21: visitors did not know how to leave and waited out the whole result screen.
+            if self.booth:
+                self.finish()  # back to the launcher's game list
+            elif self.engine.skip_result():
+                self.state_changed()
+                self.sync_sprites()
             return
         if key == arcade.key.ESCAPE and self.engine.state != "TITLE":
             if not self.focus_paused:
@@ -140,6 +217,8 @@ class GuardianWindow(arcade.Window):
             self.engine.skill()
 
     def on_key_release(self, key, modifiers):
+        if key == self.hold_key:
+            self.hold_key = None
         self.keys.discard(key)
         self.control_keys.discard(key)
 
@@ -158,10 +237,80 @@ class GuardianWindow(arcade.Window):
                 return
             self.request_board()
 
-    def request_board(self, result=None):
-        token = result.session_id if result else None
-        self.jobs.append((token, self.worker.submit(result)))
-        self.rank_status = "기록 저장 중" if result else "기록을 불러오는 중"
+    def request_board(self, result=None, name=None):
+        kind = None if result is None else "save" if name else "preview"
+        token = (kind, result.session_id) if result else None
+        self.jobs.append((token, self.worker.submit(result, name)))
+        self.rank_status = {"save": "기록 저장 중", "preview": "오늘 순위 확인 중", None: "기록을 불러오는 중"}[kind]
+
+    def type_initial(self, key):
+        if key == arcade.key.ESCAPE:
+            self.close_entry("건너뛰어서 기록을 남기지 않았어요")
+        elif arcade.key.A <= key <= arcade.key.Z:
+            if len(self.entry_text) < NAME_LENGTH:
+                self.entry_text += chr(ord("A") + key - arcade.key.A)
+                self.entry_warning = ""
+        elif key == arcade.key.BACKSPACE:
+            self.entry_text, self.entry_warning = self.entry_text[:-1], ""
+        elif key in (arcade.key.ENTER, arcade.key.RETURN, arcade.key.NUM_ENTER):
+            if len(self.entry_text) < NAME_LENGTH:
+                self.entry_warning = f"영문 이니셜 {NAME_LENGTH}글자를 모두 입력해 주세요."
+            elif not is_allowed(self.entry_text):
+                self.entry_warning = "사용할 수 없는 이니셜이에요. 다른 글자로 입력해 주세요."
+            else:
+                self.entry = "saved"
+                self.request_board(self.engine.result, self.entry_text)
+
+    def staff_job(self, future, notice):
+        self.jobs.append((("staff", None), future))
+        self.notice, self.notice_left = notice, 5.0
+
+    def staff_hold(self, delta_time):
+        if self.hold_key and self.engine.state == "TITLE" and self.clock - self.hold_since >= OPERATOR_HOLD:
+            key, self.hold_key = self.hold_key, None
+            if key == arcade.key.F9:
+                self.staff_job(self.worker.reset_today(), "오늘 순위를 초기화했어요 · 지우기 전 파일은 data 폴더에 백업")
+            elif self.board.rows:
+                self.editing, self.edit_index, self.edit_armed, self.edit_idle = True, 0, False, 0.0
+            else:
+                self.notice, self.notice_left = "오늘 기록이 없어 고칠 이름이 없어요", 4.0
+        if self.editing:
+            self.edit_idle += delta_time
+            if self.edit_idle >= EDITOR_IDLE or self.engine.state != "TITLE":
+                self.editing = False
+        self.notice_left = max(0, self.notice_left-delta_time)
+
+    def edit_key(self, key):
+        """Staff name editor: pick a row, press Enter twice, and its name becomes ???. Score and place stay."""
+        self.edit_idle = 0.0
+        rows = self.board.rows
+        if key in (arcade.key.F8, arcade.key.ESCAPE) or not rows:
+            self.editing = False
+        elif key in (arcade.key.UP, arcade.key.DOWN):
+            self.edit_index = (self.edit_index + (1 if key == arcade.key.DOWN else -1)) % len(rows)
+            self.edit_armed = False
+        elif key in (arcade.key.ENTER, arcade.key.RETURN, arcade.key.NUM_ENTER):
+            row = rows[min(self.edit_index, len(rows)-1)]
+            if row["name"] == ANONYMOUS:
+                self.notice, self.notice_left = "이미 ???로 바뀐 기록이에요", 3.0
+            elif not self.edit_armed:
+                self.edit_armed = True
+            else:
+                self.edit_armed = False
+                self.staff_job(self.worker.anonymize(row["session_id"]), f"{row['rank']}위 이름을 ???로 바꿨어요")
+
+    def close_entry(self, message):
+        self.entry, self.rank_status = "closed", message
+
+    def ranked(self, board):
+        """The result's place today has arrived: open initials entry if it makes the TOP 10."""
+        rank = board.own["rank"]
+        if rank <= TOP and self.engine.elapsed < NAME_SECONDS:
+            self.entry, self.entry_text, self.entry_warning = "typing", "", ""
+            self.rank_status = f"오늘 {rank}위! 오른쪽에 이니셜을 남겨 주세요"
+        else:
+            tenth = f" · 10위는 {board.rows[TOP-1]['score']:,}점" if len(board.rows) >= TOP else ""
+            self.close_entry(f"오늘 {rank}위{tenth}")
 
     def poll_rankings(self):
         active = self.engine.result.session_id if self.engine.state == "RESULT" else None
@@ -169,22 +318,37 @@ class GuardianWindow(arcade.Window):
             if not future.done():
                 continue
             self.jobs.remove((token, future))
+            current = token[1] == active if token else active is None
             try:
                 board = future.result()
-                if token == active:
+                if current:
                     self.board = board
-                    self.rank_status = "기록 저장 완료" if token else "이 PC에 저장된 기록"
+                    if token is None:
+                        self.rank_status = "이 PC · 날짜가 바뀌면 새로 시작해요"
+                    elif token[0] == "preview":
+                        self.ranked(board)
+                    elif token[0] == "staff":
+                        self.rank_status = "이 PC · 날짜가 바뀌면 새로 시작해요"
+                        self.edit_index = min(self.edit_index, max(0, len(board.rows)-1))
+                    else:
+                        self.rank_status = "기록 저장 완료"
             except Exception as exc:
                 print(f"Ranking unavailable: {exc}", file=sys.stderr)
-                if token == active:
-                    self.rank_status = "기록을 저장하지 못했습니다" if token else "랭킹을 불러오지 못했습니다"
+                if current:
                     self.board = Board((), 0, None)
+                    if token and token[0] == "preview":
+                        self.close_entry("오늘 순위를 확인하지 못했습니다")
+                    else:
+                        self.rank_status = "기록을 저장하지 못했습니다" if token else "랭킹을 불러오지 못했습니다"
 
     def on_update(self, delta_time):
         self.clock += delta_time
-        if self.clock < STARTUP_RESTORE_SECONDS and self.fullscreen and not self.automated:
-            self.restore_if_minimized()
+        if self.front_pending and not self.automated and self.clock >= self.front_check_at:
+            # Check twice a second for the first seconds; stop once the window is in front.
+            self.front_check_at = self.clock + 0.5
+            self.front_pending = not self.bring_to_front() and self.clock < STARTUP_RESTORE_SECONDS
         self.poll_rankings()
+        self.staff_hold(delta_time)
         if self.focus_paused:
             return
         if self.manual_paused:
@@ -208,8 +372,11 @@ class GuardianWindow(arcade.Window):
                 if enemy.kind in self.engine.intros and enemy.kind not in self.seen_attacks:
                     self.seen_attacks.add(enemy.kind)
                     self.banner, self.banner_left = enemy.kind, 3.0
+        if self.entry == "typing" and (self.engine.state != "RESULT" or self.engine.elapsed >= NAME_SECONDS):
+            self.close_entry("입력 시간이 지나 기록을 남기지 않았어요")
         if self.engine.result and self.seen_result != self.engine.result.session_id:
             self.seen_result = self.engine.result.session_id
+            self.entry = None
             self.board = Board(self.board.rows, self.board.total, None)
             if self.engine.result.eligible:
                 self.request_board(self.engine.result)
@@ -332,28 +499,60 @@ class GuardianWindow(arcade.Window):
         keys = "Esc 끝내기" if self.booth else "F11 전체 화면    ·    Esc 일시정지"
         self.txt("footer", f"{keys}    ·    실제 비밀번호는 입력하지 않습니다", 100, 87, 17, MUTED)
         self.draw_board(1200, 160, 620, 815)
+        if self.editing:
+            self.draw_editor(1200, 160, 620, 815)
+        if self.hold_key:
+            left = max(0, math.ceil(OPERATOR_HOLD - (self.clock - self.hold_since)))
+            what = "운영자 순위 편집" if self.hold_key == arcade.key.F8 else "오늘 순위 초기화"
+            self.txt("staff-hold", f"{what} · {left}초 더 누르고 있으세요", 1200, 120, 18, GOLD)
+        elif self.notice_left:
+            self.txt("staff-notice", self.notice, 1200, 120, 18, GOLD)
+
+    def draw_editor(self, x, y, w, h):
+        self.panel(x, y, w, h, fill=(31, 20, 26, 250), edge=(150, 112, 50))
+        self.txt("ed-tag", "STAFF ONLY", x+30, y+h-27, 16, GOLD)
+        self.txt("ed-title", "운영자 순위 편집", x+30, y+h-65, 30, bold=True)
+        self.txt("ed-help", "부적절한 이름 하나를 ???로 바꿉니다. 점수와 순위는 그대로예요.", x+30, y+h-118, 16, MUTED,
+                 width=int(w-60))
+        for i, row in enumerate(self.board.rows):
+            row_y = y+h-225-i*47
+            selected = i == self.edit_index
+            if selected:
+                arcade.draw_lbwh_rectangle_filled(x+17, row_y-33, w-34, 43, (96, 64, 30, 255) if self.edit_armed
+                                                  else (64, 52, 38, 255))
+            self.txt(f"ed-rank{i}", f"{row['rank']:02}", x+30, row_y, 20, GOLD if selected else MUTED)
+            self.txt(f"ed-name{i}", row["name"], x+102, row_y, 22, WHITE, bold=True)
+            self.txt(f"ed-score{i}", f"{row['score']:,}", x+w-30, row_y, 22, WHITE, anchor="right")
+        row = self.board.rows[min(self.edit_index, len(self.board.rows)-1)] if self.board.rows else None
+        if self.edit_armed and row:
+            hint = f"Enter를 한 번 더 누르면 {row['name']} → ???"
+        else:
+            hint = "↑↓ 고르기 · Enter 두 번 ???로 바꾸기 · F8 끝내기"
+        self.txt("ed-hint", hint, x+30, y+81, 16, GOLD if self.edit_armed else WHITE, width=int(w-60))
+        self.txt("ed-idle", f"{max(0, math.ceil(EDITOR_IDLE - self.edit_idle))}초 동안 입력이 없으면 닫혀요", x+30, y+45, 15, MUTED)
+
 
     def draw_board(self, x, y, w, h, *, result=False):
         self.panel(x, y, w, h)
         self.txt("board-tag", "LOCAL LEADERBOARD", x+30, y+h-27, 16, CYAN)
-        self.txt("board-title", "이 PC의 기록 TOP 10", x+30, y+h-65, 30, bold=True)
+        self.txt("board-title", "오늘의 TOP 10", x+30, y+h-65, 30, bold=True)
         self.txt("board-status", self.rank_status, x+30, y+h-118, 16, MUTED, width=int(w-60))
-        self.txt("board-head", "순위     참가 코드", x+30, y+h-177, 18, MUTED)
+        self.txt("board-head", "순위     이름", x+30, y+h-177, 18, MUTED)
         self.txt("board-score-head", "점수", x+w-30, y+h-177, 18, MUTED, anchor="right")
         if not self.board.rows:
             self.txt("board-empty", "첫 번째 기록에 도전하세요", x+30, y+h-253, 22, MUTED, width=int(w-60))
-        own_id = (self.board.own["id"] if result and self.board.own
+        own_id = (self.board.own["session_id"] if result and self.board.own
                   and self.board.own["session_id"] == self.engine.result.session_id else None)
         for i, row in enumerate(self.board.rows):
             row_y = y+h-225-i*47
-            own = row["id"] == own_id
+            own = row["session_id"] == own_id
             if own:
                 arcade.draw_lbwh_rectangle_filled(x+17, row_y-33, w-34, 43, (24, 73, 82, 255))
             self.txt(f"rank{i}", f"{row['rank']:02}", x+30, row_y, 20, CYAN if i < 3 else MUTED)
-            self.txt(f"code{i}", participant_code(row["id"]), x+102, row_y, 19, WHITE)
+            self.txt(f"name{i}", row["name"], x+102, row_y, 22, WHITE, bold=True)
             self.txt(f"score{i}", f"{row['score']:,}", x+w-30, row_y, 22, CYAN if own else WHITE, anchor="right")
-        self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 등록", x+30, y+81, 15, MUTED)
-        self.txt("board-total", f"총 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
+        self.txt("board-bottom", "동점: 정답 수 → 적은 부활 → 먼저 달성", x+30, y+81, 15, MUTED)
+        self.txt("board-total", f"오늘 {self.board.total}개 기록  ·  이 PC에만 저장", x+30, y+45, 16, MUTED)
 
     def sight(self, enemy):
         reach, steps = 900, 8
@@ -421,9 +620,9 @@ class GuardianWindow(arcade.Window):
             arcade.draw_lbwh_rectangle_outline(68, 113, 1424, 809, (255, 150, 60, 150), 3)
         if self.banner_left and e.state == "COMBAT":
             intro = e.intros[self.banner]
-            self.panel(280, 778, 1000, 76, fill=(10, 27, 41, 232), edge=(150, 112, 50))
-            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 845, 19, GOLD, bold=True)
-            self.txt("banner-tip", intro["tip"], 306, 816, 20, WHITE)
+            self.panel(280, 762, 1000, 94, fill=(10, 27, 41, 236), edge=(150, 112, 50))
+            self.txt("banner-name", f"새 공격 · {intro['name']}", 306, 848, 22, GOLD, bold=True)
+            self.txt("banner-tip", intro["tip"], 306, 812, 24, WHITE, bold=True)
         self.draw_sidebar()
         self.txt("game-footer", "방향키 이동     SHIFT 정밀 이동     SPACE 주변 탄환 제거     Esc 일시정지", 83, 78, 19, MUTED)
         self.txt("auto-label", "자동 발사 ON", 1450, 78, 18, CYAN, anchor="right")
@@ -453,6 +652,18 @@ class GuardianWindow(arcade.Window):
         self.txt("tutorial-title", "움직이고, 피하고, 지켜요", 335, 759, 36, bold=True)
         self.txt("tutorial-body", "방향키로 움직이면 자동 발사돼요. Shift를 누르면 천천히 움직이고\n맞는 곳(빨간 점)이 보여요. Space는 주변 탄환을 지워요.", 335, 691, 22, MUTED, width=890)
         self.txt("tutorial-note", "탄막은 공격의 압박을 표현한 비유입니다.", 335, 596, 18, MUTED)
+        # QA 2026-10-21: show which shapes hurt. Enemy shots have a red halo; items are white-rimmed tiles.
+        self.panel(295, 380, 970, 150, fill=(10, 27, 41, 245), edge=(55, 126, 140))
+        for i, kind in enumerate(("guess", "dict", "leak")):
+            self.image(kind, 345 + i*52, 455, self.textures[kind].width)
+        self.txt("legend-enemy", "적 탄환", 510, 488, 22, RED, bold=True)
+        self.txt("legend-enemy-tip", "맞으면 아파요. 피하세요!", 510, 455, 19, WHITE)
+        self.image("player_bullet", 812, 455, self.textures["player_bullet"].width)
+        self.txt("legend-mine", "내 탄환", 840, 488, 20, CYAN, bold=True)
+        for i, kind in enumerate(("patch", "backup")):
+            self.image(kind, 990 + i*50, 455, self.textures[kind].width)
+        self.txt("legend-item", "아이템", 1070, 488, 20, GOLD, bold=True)
+        self.txt("legend-item-tip", "먹으면 좋아요", 1070, 455, 19, WHITE)
 
     def draw_choice(self):
         e = self.engine
@@ -494,21 +705,55 @@ class GuardianWindow(arcade.Window):
         summary = f"일반 적 {result.enemy_kills}기 처치   ·   부활 {result.revive_count}회   ·   보스 {'처치' if result.boss_defeated else '시간 방어 완료'}"
         self.txt("result-stats", summary, 125, 558, 23, WHITE)
         own = self.board.own
-        if result.eligible and own and own["session_id"] == result.session_id:
-            rank_message = f"{participant_code(own['id'])}   /   이번 기록 {own['rank']}위 · 총 {self.board.total}개"
+        if self.entry == "saved" and own and own["session_id"] == result.session_id and own.get("name"):
+            rank_message = f"{own['name']}   ·   오늘 {own['rank']}위로 저장했어요"
         else:
             rank_message = self.rank_status
         self.txt("result-rank", rank_message, 125, 508, 23, CYAN)
+        # QA 2026-10-21: what was learned should stand out, as three short habits.
+        self.txt("result-habits", "오늘의 비밀번호 습관 3가지", 125, 462, 21, GOLD, bold=True)
         for i, record in enumerate(result.choices):
-            y = 432-i*62
+            y = 420-i*56
             label = "정답" if record.correct else "미선택" if record.selection is None else "다시 기억해요"
-            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 23, CYAN)
-            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 24, WHITE)
-            self.txt(f"result-choice-status{i}", label, 1085, y, 21, CYAN if record.correct else GOLD, anchor="right")
-        self.txt("result-message", "길고 예측하기 어려운 비밀번호를 서비스마다 다르게 사용하고,\n다중 인증을 함께 설정하세요. 어떤 수단도 모든 공격을 막지는 못합니다.", 94, 221, 21, MUTED, width=1050)
-        self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 후 {'게임이 끝납니다' if self.booth else '시작 화면으로 돌아갑니다'}", 94, 114, 24, CYAN)
+            self.txt(f"result-choice-num{i}", f"0{i+1}", 125, y, 27, CYAN, bold=True)
+            self.txt(f"result-choice{i}", self.engine.questions[i]["short"], 191, y, 28, WHITE, bold=True)
+            self.txt(f"result-choice-status{i}", label, 1085, y-3, 21, CYAN if record.correct else GOLD, anchor="right")
+        self.txt("result-message", "세 가지를 함께 쓰세요. 어떤 방법도 혼자서는 모든 공격을 막지 못해요.", 94, 218, 22, WHITE)
+        if self.entry != "typing":  # while typing, Enter saves the initials instead
+            where = "게임 선택으로" if self.booth else "처음 화면으로"
+            ready = self.engine.elapsed >= RESULT_SKIP_LOCK - 1e-6
+            self.panel(90, 92, 1045, 70, fill=(10, 27, 41, 235), edge=CYAN if ready else EDGE)
+            self.txt("result-skip-key", "ENTER", 120, 147, 32, CYAN if ready else MUTED, bold=True)
+            self.txt("result-skip", where, 290, 145, 30, WHITE if ready else MUTED, bold=True)
+            self.txt("result-timer", f"{math.ceil(self.engine.remaining)}초 뒤 자동으로 이동", 1105, 140, 20, MUTED,
+                     anchor="right")
         self.txt("result-disclaimer", "등급은 실제 보안 진단이 아닙니다. 탄막과 강화는 학습을 위한 비유입니다.", 94, 63, 16, MUTED)
-        self.draw_board(1200, 130, 620, 815, result=True)
+        if self.entry == "typing":
+            self.draw_entry(1200, 130, 620, 815)
+        else:
+            self.draw_board(1200, 130, 620, 815, result=True)
+
+    def draw_entry(self, x, y, w, h):
+        self.panel(x, y, w, h, edge=(150, 112, 50))
+        rank = self.board.own["rank"] if self.board.own else 0
+        self.txt("entry-tag", "TODAY'S TOP 10", x+30, y+h-27, 16, GOLD)
+        self.txt("entry-title", f"오늘 {rank}위 진입!", x+30, y+h-65, 36, bold=True)
+        self.txt("entry-guide", f"순위표에 남길 영문 이니셜 {NAME_LENGTH}글자를\n입력해 주세요.", x+30, y+h-140, 22, WHITE,
+                 width=int(w-60))
+        box, gap = 130, 30
+        left = x + (w - NAME_LENGTH*box - (NAME_LENGTH-1)*gap) / 2
+        for i in range(NAME_LENGTH):
+            bx = left + i*(box+gap)
+            current = i == len(self.entry_text)
+            self.panel(bx, y+h-470, box, 150, fill=(10, 27, 41, 255), edge=CYAN if current else EDGE)
+            letter = self.entry_text[i] if i < len(self.entry_text) else ""
+            self.txt(f"entry-letter{i}", letter, bx+box/2, y+h-345, 72, WHITE, bold=True, anchor="center")
+        if self.entry_warning:
+            self.txt("entry-warning", self.entry_warning, x+30, y+h-505, 19, GOLD, width=int(w-60))
+        self.txt("entry-keys", "A~Z 입력   ·   Backspace 지우기", x+30, y+215, 21, MUTED)
+        self.txt("entry-keys2", "Enter 저장   ·   Esc 건너뛰기", x+30, y+175, 21, MUTED)
+        seconds = max(0, math.ceil(NAME_SECONDS - self.engine.elapsed))
+        self.txt("entry-timer", f"{seconds}초 안에 저장하지 않으면\n기록이 남지 않아요", x+30, y+110, 21, CYAN, width=int(w-60))
 
     def on_close(self):
         if hasattr(self, "worker") and not self.closed_worker:

@@ -1,5 +1,5 @@
 import math
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import arcade
 from .config import ROOT
 
@@ -28,7 +28,7 @@ def _font(size):
 
 def _texture(im, key):
     w, h = im.size
-    return arcade.Texture(im.resize((w // SS, h // SS), Image.LANCZOS), hash=f"guardian-{key}-v2")
+    return arcade.Texture(im.resize((w // SS, h // SS), Image.LANCZOS), hash=f"guardian-{key}-v3")
 
 
 def _canvas(w, h):
@@ -171,13 +171,27 @@ def _firewall():  # brick wall
     return im
 
 
+def _threat(im):
+    """Wrap an enemy bullet in a red halo and ring. QA (2026-10-21): the "?" bubble read as an item or a hint,
+    not as something that hurts. Player shots and items stay without it."""
+    pad = 6 * SS
+    w, h = im.size
+    out = Image.new("RGBA", (w + 2*pad, h + 2*pad))
+    halo = Image.new("RGBA", out.size)
+    ImageDraw.Draw(halo).ellipse((pad//2, pad//2, out.width - pad//2, out.height - pad//2), fill=(255, 30, 50, 170))
+    out.alpha_composite(halo.filter(ImageFilter.GaussianBlur(3 * SS)))
+    ImageDraw.Draw(out).ellipse((pad - 3*SS, pad - 3*SS, w + pad + 3*SS, h + pad + 3*SS), outline=(255, 60, 70), width=2*SS)
+    out.alpha_composite(im, (pad, pad))
+    return out
+
+
 def bullet_textures():
     # Padlock for the guardian; guess (?), dictionary and leaked key for the attacks; hook (phishing),
     # bell (approval prompts), keycap (keylogger) and an eye diamond (shoulder surfer) for the newer attacks.
-    return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_bubble("?", ORANGE), "guess"),
-            "dict": _texture(_book(PURPLE), "dict"), "leak": _texture(_key(RED), "leak"),
-            "hook": _texture(_hook(PINK), "hook"), "bell": _texture(_bell(LIME), "bell"), "keycap": _texture(_keycap(), "keycap"),
-            "peek": _texture(_diamond(), "peek"), "patch": _texture(_patch(), "patch"),
+    return {"player_bullet": _texture(_padlock(), "padlock"), "player_homing": _texture(_padlock(GOLD), "padlock-homing"), "guess": _texture(_threat(_bubble("?", ORANGE)), "guess"),
+            "dict": _texture(_threat(_book(PURPLE)), "dict"), "leak": _texture(_threat(_key(RED)), "leak"),
+            "hook": _texture(_threat(_hook(PINK)), "hook"), "bell": _texture(_threat(_bell(LIME)), "bell"),
+            "keycap": _texture(_threat(_keycap()), "keycap"), "peek": _texture(_threat(_diamond()), "peek"), "patch": _texture(_patch(), "patch"),
             "backup": _texture(_backup(), "backup"), "vaccine": _texture(_vaccine(), "vaccine"),
             "badge": _texture(_badge(), "badge"), "firewall": _texture(_firewall(), "firewall")}
 

@@ -1,117 +1,141 @@
-"""Local-only storage. Connections are owned by the calling worker thread."""
+"""Today's TOP 10 on this PC, kept in data/ranking.json beside the game like the booth's other two games.
+
+File access runs on a worker thread. A save writes a temporary file and swaps it in, so a power cut never
+leaves half a file, and the previous file stays as ranking.json.bak.
+"""
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+import json
 import os
-import sqlite3
+import shutil
+import sys
 
-from .config import RULESET
+from .config import ROOT, RULESET
 from .session import Result
 
-ORDER = "score DESC, correct_count DESC, revive_count ASC, id ASC"
-SCHEMA_VERSION = 1
+TOP = 10
+FILE_VERSION = 1
+ANONYMOUS = "???"
+FIELDS = {"session_id": str, "ruleset_version": str, "name": str, "score": int, "correct_count": int,
+          "revive_count": int, "enemy_kills": int, "boss_defeated": bool, "completed_at": str}
 
 
 def default_data_dir():
-    base = Path(os.environ.get("LOCALAPPDATA", Path.home() / ".local/share"))
-    return base / "PasswordGuardian"
+    # Beside PasswordGuardian.exe in a build, the project folder otherwise. One folder to clear after the event.
+    base = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else ROOT
+    return base / "data"
+
+
+def sort_key(row):
+    # Score, then more correct answers, then fewer revivals, then whoever got there first.
+    return (-row["score"], -row["correct_count"], row["revive_count"], row["completed_at"])
+
+
+def valid(row):
+    return (isinstance(row, dict) and all(isinstance(row.get(k), t) for k, t in FIELDS.items())
+            and row["score"] >= 0 and 0 <= row["correct_count"] <= 3 and row["revive_count"] >= 0)
+
+
+def row_for(result: Result, name):
+    return {"session_id": result.session_id, "ruleset_version": result.ruleset_version, "name": name,
+            "score": result.score, "correct_count": result.correct_count, "revive_count": result.revive_count,
+            "enemy_kills": result.enemy_kills, "boss_defeated": result.boss_defeated,
+            "completed_at": result.completed_at}
 
 
 @dataclass(frozen=True)
 class Board:
-    rows: tuple[dict, ...]
-    total: int
-    own: dict | None
+    rows: tuple[dict, ...]  # today's TOP 10, each with its "rank"
+    total: int  # records today
+    own: dict | None  # the record asked about, with its rank today
 
 
 class RankingRepository:
-    def __init__(self, path):
+    def __init__(self, path, clock=datetime.now):
         self.path = Path(path)
+        self.clock = clock
 
-    def connect(self):
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        con = sqlite3.connect(self.path, timeout=0.35)
+    def stamp(self):
+        return self.clock().strftime("%Y%m%d_%H%M%S")
+
+    def load(self):
+        if not self.path.exists():
+            return []
         try:
-            con.row_factory = sqlite3.Row
-            version = con.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, SCHEMA_VERSION):
-                raise ValueError("지원하지 않는 랭킹 DB 버전입니다. 원본을 보존합니다.")
-            if version == 0:
-                if con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchone():
-                    raise ValueError("알 수 없는 DB 구조입니다. 원본을 보존합니다.")
-                with con:
-                    con.execute('''CREATE TABLE rankings (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        session_id TEXT NOT NULL UNIQUE,
-                        ruleset_version TEXT NOT NULL,
-                        score INTEGER NOT NULL CHECK(score >= 0),
-                        correct_count INTEGER NOT NULL CHECK(correct_count BETWEEN 0 AND 3),
-                        revive_count INTEGER NOT NULL CHECK(revive_count >= 0),
-                        enemy_kills INTEGER NOT NULL CHECK(enemy_kills >= 0),
-                        boss_defeated INTEGER NOT NULL CHECK(boss_defeated IN (0, 1)),
-                        completed_at TEXT NOT NULL
-                    )''')
-                    con.execute(f"CREATE INDEX rank_order ON rankings(ruleset_version, {ORDER})")
-                    con.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
-            return con
-        except Exception:
-            con.close()
-            raise
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            # Rows an operator mistyped while editing by hand are skipped, not fatal.
+            return [row for row in data["records"] if valid(row)]
+        except (ValueError, KeyError, TypeError):
+            # A broken file is moved aside, never deleted, and the game carries on with an empty board.
+            os.replace(self.path, self.path.with_name(f"ranking_broken_{self.stamp()}.json"))
+            return []
 
-    def record(self, result: Result):
+    def save(self, rows):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if self.path.exists():
+            shutil.copy2(self.path, self.path.with_name(self.path.name + ".bak"))
+        temp = self.path.with_name(self.path.name + ".tmp")
+        temp.write_text(json.dumps({"version": FILE_VERSION, "records": rows}, ensure_ascii=False, indent=1),
+                        encoding="utf-8")
+        os.replace(temp, self.path)
+
+    def today(self, rows, ruleset=RULESET):
+        day = self.clock().date().isoformat()
+        return sorted((r for r in rows if r["completed_at"][:10] == day and r["ruleset_version"] == ruleset),
+                      key=sort_key)
+
+    def board(self, ruleset=RULESET, session_id=None, candidate: Result | None = None):
+        today = self.today(self.load(), ruleset)
+        ranked = [dict(row, rank=i+1) for i, row in enumerate(today)]
+        own = next((row for row in ranked if row["session_id"] == session_id), None) if session_id else None
+        if candidate is not None and own is None:
+            # Where an unsaved result would land: behind every equal record, since those came first.
+            row = row_for(candidate, None)
+            own = dict(row, rank=1 + sum(sort_key(r) <= sort_key(row) for r in today))
+        return Board(tuple(ranked[:TOP]), len(today), own)
+
+    def record(self, result: Result, name):
         if not result.eligible:
             return self.board(result.ruleset_version)
-        con = self.connect()
-        try:
-            with con:
-                con.execute('''INSERT INTO rankings
-                    (session_id,ruleset_version,score,correct_count,revive_count,enemy_kills,boss_defeated,completed_at)
-                    VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(session_id) DO NOTHING''',
-                    (result.session_id, result.ruleset_version, result.score, result.correct_count,
-                     result.revive_count, result.enemy_kills, int(result.boss_defeated), result.completed_at))
-        finally:
-            con.close()
+        row = row_for(result, name)
+        if not valid(row):
+            raise ValueError("기록 형식이 올바르지 않습니다.")
+        rows = self.load()
+        if not any(r["session_id"] == result.session_id for r in rows):
+            self.save(rows + [row])
         return self.board(result.ruleset_version, result.session_id)
 
-    def board(self, ruleset=RULESET, session_id=None):
-        con = self.connect()
-        try:
-            # The same read transaction keeps count, TOP 10 and own rank consistent.
-            con.execute("BEGIN")
-            total = con.execute("SELECT COUNT(*) FROM rankings WHERE ruleset_version=?", (ruleset,)).fetchone()[0]
-            query = f'''WITH ranked AS (
-                SELECT *, ROW_NUMBER() OVER (ORDER BY {ORDER}) AS rank
-                FROM rankings WHERE ruleset_version=?
-            ) SELECT * FROM ranked'''
-            rows = tuple(dict(row) for row in con.execute(query + " ORDER BY rank LIMIT 10", (ruleset,)))
-            own = con.execute(query + " WHERE session_id=?", (ruleset, session_id)).fetchone() if session_id else None
-            return Board(rows, total, dict(own) if own else None)
-        finally:
-            con.close()
+    def anonymize(self, session_id):
+        """Staff: replace one unsuitable name with ???. Score and place stay; the previous file stays as .bak."""
+        rows = self.load()
+        for row in rows:
+            if row["session_id"] == session_id and row["name"] != ANONYMOUS:
+                row["name"] = ANONYMOUS
+                self.save(rows)
+                break
+        return self.board()
+
+    def reset_today(self):
+        """Staff: clear today's records after copying the whole file to ranking_reset_<time>.json."""
+        if self.path.exists():
+            shutil.copy2(self.path, self.path.with_name(f"ranking_reset_{self.stamp()}.json"))
+        day = self.clock().date().isoformat()
+        self.save([row for row in self.load() if row["completed_at"][:10] != day])
+        return self.board()
 
     def backup(self, destination):
         destination = Path(destination).resolve()
         if destination == self.path.resolve() or destination.exists():
             raise ValueError("백업은 기존 파일이 없는 별도 경로를 지정하세요.")
-        source = self.connect()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        target = sqlite3.connect(destination)
-        try:
-            source.backup(target)
-            if target.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                raise ValueError("백업 검증에 실패했습니다.")
-        finally:
-            target.close()
-            source.close()
+        destination.write_text(json.dumps({"version": FILE_VERSION, "records": self.load()}, ensure_ascii=False,
+                                          indent=1), encoding="utf-8")
 
     def reset(self, backup_path):
         self.backup(backup_path)
-        con = self.connect()
-        try:
-            with con:
-                con.execute("DELETE FROM rankings")
-        finally:
-            con.close()
+        self.save([])
 
 
 class RankingWorker:
@@ -119,20 +143,21 @@ class RankingWorker:
         self.repository = RankingRepository(path)
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="guardian-ranking")
 
-    def submit(self, result=None):
+    def submit(self, result=None, name=None):
+        # No result: today's board. A result without a name: where it would rank, unsaved. Both: save it.
         def work():
-            for attempt in range(2):
-                try:
-                    return self.repository.record(result) if result else self.repository.board()
-                except sqlite3.OperationalError as exc:
-                    if attempt or not any(word in str(exc).lower() for word in ("locked", "busy")):
-                        raise
-            raise RuntimeError("기록 저장에 실패했습니다.")
+            if result is None:
+                return self.repository.board()
+            if name is None:
+                return self.repository.board(result.ruleset_version, candidate=result)
+            return self.repository.record(result, name)
         return self.executor.submit(work)
+
+    def anonymize(self, session_id):
+        return self.executor.submit(self.repository.anonymize, session_id)
+
+    def reset_today(self):
+        return self.executor.submit(self.repository.reset_today)
 
     def close(self):
         self.executor.shutdown(wait=False, cancel_futures=False)
-
-
-def participant_code(record_id):
-    return f"수호자-{record_id:06d}"

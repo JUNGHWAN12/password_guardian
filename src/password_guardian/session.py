@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import uuid4
 from .config import RULESET
 
@@ -80,4 +80,4 @@ class Session:
         records = tuple(c or ChoiceRecord(None, False) for c in self.choices)
         return Result(self.session_id, RULESET, self.score, sum(c.correct for c in records),
                       self.revive_count, self.enemy_kills, self.boss_defeated,
-                      datetime.now(timezone.utc).isoformat(), records, eligible)
+                      datetime.now().astimezone().isoformat(timespec="seconds"), records, eligible)

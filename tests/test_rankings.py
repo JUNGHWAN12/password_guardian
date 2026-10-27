@@ -1,105 +1,155 @@
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
-import sqlite3
+import json
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from password_guardian.rankings import RankingRepository, RankingWorker
+from password_guardian.rankings import RankingRepository, RankingWorker, default_data_dir
 from password_guardian.session import Session
+
+TODAY = datetime(2026, 10, 24, 14, 0)
 
 
 class RankingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.folder = Path(self.temp.name)
-        self.path = self.folder / "rankings.sqlite3"
-        self.repo = RankingRepository(self.path)
+        self.path = self.folder / "data" / "ranking.json"
+        self.now = TODAY
+        self.repo = RankingRepository(self.path, clock=lambda: self.now)
+        self.minute = 0
 
     def tearDown(self):
         self.temp.cleanup()
 
-    def result(self, score=100, correct=1, revives=1, **kwargs):
-        return replace(Session().finish(), score=score, correct_count=correct, revive_count=revives, **kwargs)
+    def result(self, score=100, correct=1, revives=1, day="2026-10-24", **kwargs):
+        self.minute += 1  # later results complete later
+        stamp = f"{day}T10:{self.minute:02}:00+09:00"
+        return replace(Session().finish(), score=score, correct_count=correct, revive_count=revives,
+                       completed_at=stamp, **kwargs)
 
     def test_zero_score_persists_and_duplicate_is_idempotent(self):
         result = self.result(score=0)
-        first = self.repo.record(result)
-        again = RankingRepository(self.path).record(result)
+        first = self.repo.record(result, "ABC")
+        again = RankingRepository(self.path, clock=lambda: self.now).record(result, "ABC")
         self.assertEqual(again.total, 1)
         self.assertEqual(first.own, again.own)
+        self.assertEqual(first.own["name"], "ABC")
 
-    def test_ties_correct_revives_then_insertion_order(self):
+    def test_ties_correct_revives_then_earlier_first(self):
         a = self.result(100, 1, 0)
         b = self.result(100, 2, 2)
         c = self.result(100, 2, 1)
         d = self.result(100, 2, 1)
-        for result in (a, b, c, d):
-            self.repo.record(result)
+        for result in (d, a, c, b):  # saving order does not matter; completion time does
+            self.repo.record(result, "AAA")
         self.assertEqual([r["session_id"] for r in self.repo.board().rows],
                          [c.session_id, d.session_id, b.session_id, a.session_id])
 
     def test_top_ten_and_own_position_outside_ten(self):
         target = self.result(0)
-        self.repo.record(target)
+        self.repo.record(target, "AAA")
         for score in range(1, 13):
-            self.repo.record(self.result(score))
+            self.repo.record(self.result(score), "AAA")
         board = self.repo.board(session_id=target.session_id)
         self.assertEqual((len(board.rows), board.total, board.own["rank"]), (10, 13, 13))
+        self.assertEqual([r["rank"] for r in board.rows], list(range(1, 11)))
+
+    def test_only_today_counts(self):
+        self.repo.record(self.result(900, day="2026-10-23"), "AAA")
+        self.repo.record(self.result(100), "AAA")
+        board = self.repo.board()
+        self.assertEqual((board.total, [r["score"] for r in board.rows]), (1, [100]))
+        self.now = datetime(2026, 10, 25, 9, 0)  # the next morning starts empty
+        self.assertEqual(self.repo.board().total, 0)
+        self.assertEqual(len(self.repo.load()), 2)  # older days stay in the file
+
+    def test_unsaved_candidate_rank(self):
+        for score in (300, 200, 100):
+            self.repo.record(self.result(score), "AAA")
+        self.assertEqual(self.repo.board(candidate=self.result(200)).own["rank"], 3)  # behind the earlier 200
+        self.assertEqual(self.repo.board(candidate=self.result(250)).own["rank"], 2)
+        self.assertEqual(self.repo.board().total, 3)
 
     def test_practice_not_saved_and_rulesets_separate(self):
-        self.repo.record(self.result(eligible=False))
-        self.assertEqual(self.repo.board().total, 0)
-        self.repo.record(self.result(ruleset_version="other"))
+        self.repo.record(self.result(eligible=False), "AAA")
+        self.assertFalse(self.path.exists())
+        self.repo.record(self.result(ruleset_version="other"), "AAA")
         self.assertEqual(self.repo.board().total, 0)
         self.assertEqual(self.repo.board("other").total, 1)
 
     def test_invalid_score_rejected(self):
-        with self.assertRaises(sqlite3.IntegrityError):
-            self.repo.record(self.result(score=-1))
+        with self.assertRaises(ValueError):
+            self.repo.record(self.result(score=-1), "AAA")
         self.assertEqual(self.repo.board().total, 0)
 
-    def test_corrupt_database_is_not_replaced(self):
-        content = b"not a sqlite database; preserve me"
-        self.path.write_bytes(content)
-        with self.assertRaises(sqlite3.DatabaseError):
-            self.repo.board()
-        self.assertEqual(self.path.read_bytes(), content)
+    def test_broken_file_moved_aside_and_bad_rows_skipped(self):
+        self.path.parent.mkdir(parents=True)
+        self.path.write_text("{ not json", encoding="utf-8")
+        self.assertEqual(self.repo.board().total, 0)
+        broken = list(self.path.parent.glob("ranking_broken_*.json"))
+        self.assertEqual([p.read_text(encoding="utf-8") for p in broken], ["{ not json"])
+        good = self.result(50)
+        self.repo.record(good, "AAA")
+        data = json.loads(self.path.read_text(encoding="utf-8"))
+        data["records"].append({"name": "ZZZ", "score": "lots"})  # hand-edited by mistake
+        self.path.write_text(json.dumps(data), encoding="utf-8")
+        self.assertEqual([r["session_id"] for r in self.repo.board().rows], [good.session_id])
 
-    def test_unknown_version_is_not_replaced(self):
-        self.repo.board()
-        with sqlite3.connect(self.path) as con:
-            con.execute("PRAGMA user_version=99")
-        con.close()
-        content = self.path.read_bytes()
-        with self.assertRaises(ValueError):
-            self.repo.board()
-        self.assertEqual(self.path.read_bytes(), content)
+    def test_save_keeps_previous_file(self):
+        self.repo.record(self.result(10), "AAA")
+        self.repo.record(self.result(20), "AAA")
+        previous = json.loads(self.path.with_name("ranking.json.bak").read_text(encoding="utf-8"))
+        self.assertEqual(len(previous["records"]), 1)
 
     def test_backup_reset_and_restore(self):
-        self.repo.record(self.result())
-        backup = self.folder / "backup.sqlite3"
+        self.repo.record(self.result(), "AAA")
+        backup = self.folder / "backup.json"
         self.repo.reset(backup)
         self.assertEqual(self.repo.board().total, 0)
-        self.assertEqual(RankingRepository(backup).board().total, 1)
+        self.assertEqual(RankingRepository(backup, clock=lambda: self.now).board().total, 1)
 
     def test_existing_backup_refused_without_resetting(self):
-        self.repo.record(self.result())
-        backup = self.folder / "backup.sqlite3"
+        self.repo.record(self.result(), "AAA")
+        backup = self.folder / "backup.json"
         backup.write_bytes(b"existing backup")
         with self.assertRaises(ValueError):
             self.repo.reset(backup)
         self.assertEqual(self.repo.board().total, 1)
         self.assertEqual(backup.read_bytes(), b"existing backup")
 
+    def test_staff_anonymize_keeps_score_and_place(self):
+        a, b = self.result(300), self.result(200)
+        self.repo.record(a, "BAD")
+        self.repo.record(b, "KIM")
+        board = self.repo.anonymize(a.session_id)
+        self.assertEqual([(r["rank"], r["name"], r["score"]) for r in board.rows], [(1, "???", 300), (2, "KIM", 200)])
+        self.assertTrue(self.path.with_name("ranking.json.bak").exists())
+
+    def test_staff_reset_clears_only_today_after_a_backup(self):
+        self.repo.record(self.result(900, day="2026-10-23"), "OLD")
+        self.repo.record(self.result(100), "NEW")
+        self.assertEqual(self.repo.reset_today().total, 0)
+        self.assertEqual([r["name"] for r in self.repo.load()], ["OLD"])
+        backups = list(self.path.parent.glob("ranking_reset_*.json"))
+        self.assertEqual(len(json.loads(backups[0].read_text(encoding="utf-8"))["records"]), 2)
+
+    def test_default_folder_is_data_beside_the_game(self):
+        self.assertEqual(default_data_dir(), Path(__file__).resolve().parents[1] / "data")
+
     def test_background_worker_commits_results(self):
         worker = RankingWorker(self.path)
         try:
-            result = self.result()
-            board = worker.submit(result).result(timeout=5)
+            result = replace(Session().finish())
+            preview = worker.submit(result).result(timeout=5)
+            self.assertEqual((preview.total, preview.own["rank"]), (0, 1))  # not saved yet
+            board = worker.submit(result, "KIM").result(timeout=5)
             self.assertEqual(board.own["session_id"], result.session_id)
-            self.assertEqual(worker.submit(result).result(timeout=5).total, 1)
+            self.assertEqual(worker.submit(result, "KIM").result(timeout=5).total, 1)
+            self.assertEqual(worker.submit().result(timeout=5).rows[0]["name"], "KIM")
         finally:
             worker.close()
 

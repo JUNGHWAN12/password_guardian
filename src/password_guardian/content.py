@@ -1,5 +1,5 @@
 import json
-from .config import ROOT
+from .config import COMBAT_SECONDS, ROOT
 
 KINDS = {"bot", "drone", "swarm", "phish", "keylogger", "mfa", "sprayer", "surfer", "gift"}
 FORMATIONS = {"scatter", "line", "v", "sides"}
@@ -18,7 +18,7 @@ def load_content():
             if not isinstance(choice[key], str) or not choice[key].strip():
                 raise ValueError(f"문항의 {key} 항목이 비어 있습니다.")
     for wave in waves:
-        if not (wave["stage"] in (0, 1, 2) and 0 <= wave["start"] < wave["end"] <= 52
+        if not (wave["stage"] in (0, 1, 2) and 0 <= wave["start"] < wave["end"] <= COMBAT_SECONDS
                 and wave["interval"] > 0 and 1 <= wave["count"] <= 20
                 and wave["kinds"] and set(wave["kinds"]) <= KINDS
                 and wave.get("formation", "scatter") in FORMATIONS):
